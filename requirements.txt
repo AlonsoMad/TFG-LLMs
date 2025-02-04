@@ -1,0 +1,3 @@
+pandas
+numpy
+wikipedia-api
