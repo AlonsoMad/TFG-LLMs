@@ -7,7 +7,7 @@ import wikipediaapi as wiki
 import pandas as pd
 import numpy as np
 import os
-
+from datetime import date
 
 class WikiRetriever():
   '''
@@ -45,17 +45,17 @@ class WikiRetriever():
     #Set automatically the lists and dataframes
     self.next_doc_stack = next_doc_stack if next_doc_stack is not None else []
 
-    self.en_docs_df = en_docs_df if en_docs_df is not None else pd.DataFrame(columns=["Title",
-                                                                                      "Summary",
-                                                                                      "Text",
-                                                                                      "Lang",
-                                                                                      "Url"])
+    self.en_docs_df = en_docs_df if en_docs_df is not None else pd.DataFrame(columns=["title",
+                                                                                      "summary",
+                                                                                      "text",
+                                                                                      "lang",
+                                                                                      "url"])
 
-    self.es_docs_df = es_docs_df if es_docs_df is not None else pd.DataFrame(columns=["Title",
-                                                                                      "Summary",
-                                                                                      "Text",
-                                                                                      "Lang",
-                                                                                      "Url"])
+    self.es_docs_df = es_docs_df if es_docs_df is not None else pd.DataFrame(columns=["title",
+                                                                                      "summary",
+                                                                                      "text",
+                                                                                      "lang",
+                                                                                      "url"])
 
     self.agent = agent if agent is not None else wiki.Wikipedia(user_agent=self.project_name, language=self.seed_lan)
 
@@ -101,7 +101,7 @@ class WikiRetriever():
     query = self.agent.page(title)
 
     #checks if the page is already in the collection
-    repeated = self.en_docs_df["Title"].eq(query.title).any()
+    repeated = self.en_docs_df["title"].eq(query.title).any()
 
     if query.exists() and not repeated:
       #check that both languages are available
@@ -116,8 +116,8 @@ class WikiRetriever():
 
         #Update the list
 
-        #If statement to update the stack only when its at 30% capacity
-        if self.max_size - len(self.next_doc_stack) >= 600:
+        #If statement to update the stack only when its at 20% capacity
+        if self.max_size - len(self.next_doc_stack) >= 800:
           next_titles = query.links.keys()
           self.update_stack(next_titles)
 
@@ -149,11 +149,16 @@ class WikiRetriever():
       #handle first case
       if self.doc_en_cnt == 0:
         self.update_dataframes(self.seed_query)
-        print(0)
 
       else:
         new_title = self.next_doc_stack.pop(0)
         self.update_dataframes(new_title)
+
+        #aux variable, just to provide feedback
+        progress = (self.doc_en_cnt + self.doc_es_cnt) / self.ndocs * 100 
+
+        if int(progress) % 10 == 0:
+          print(str(progress) + "%", end = "\r", flush=True)
 
     return
 
@@ -171,8 +176,17 @@ class WikiRetriever():
     '''
     df = pd.concat([self.en_docs_df, self.es_docs_df],
                            ignore_index=True)
+    
+    #create the unique identifier
+    df["id"] = df.index
 
-    save_path = os.path.join(self.file_path, "dataset.parquet.gzip")
+    #Preprocessing identifier
+    df["id_preproc"] = df["lang"].str.upper() + "_" + df["id"].astype(str)
+
+    date_name = str(date.today())
+    file_name = f"dataset_{date_name}.parquet.gzip"
+
+    save_path = os.path.join(self.file_path, file_name)
 
     if collab:
       if "drive" not in os.listdir("/content"):

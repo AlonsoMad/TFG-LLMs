@@ -1,3 +1,7 @@
 pandas
 numpy
 wikipedia-api
+scipy
+scikit-learn
+requests
+pyarrow

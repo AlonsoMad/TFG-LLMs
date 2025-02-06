@@ -1,9 +1,13 @@
-import src.API.wiki_retrieve
+from src.API.wiki_retrieve import *
 import os
 
 if __name__ == "__main__":
     # Define output directory
-    output_dir = os.path.join(os.getcwd(), "wiki_datasets")
+    dir = os.path.dirname(os.path.abspath(__file__))
+    father_dir = os.path.split(dir)[0]
+
+    output_dir = os.path.join(father_dir, "DATA")
+
     os.makedirs(output_dir, exist_ok=True)
 
     # Initialize WikiRetriever with desired parameters
