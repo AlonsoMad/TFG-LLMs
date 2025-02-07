@@ -1,0 +1,3 @@
+[submodule "src/NLPipe"]
+	path = src/NLPipe
+	url = https://github.com/Nemesis1303/NLPipe.git
