@@ -1,5 +1,8 @@
 from src.API.wiki_retrieve import *
 import os
+import time
+import logging
+
 
 if __name__ == "__main__":
     # Define output directory
@@ -10,6 +13,10 @@ if __name__ == "__main__":
 
     os.makedirs(output_dir, exist_ok=True)
 
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+    MAX_TRIES = 5
+    
     # Initialize WikiRetriever with desired parameters
     retriever = WikiRetriever(
         file_path=output_dir,
@@ -18,11 +25,25 @@ if __name__ == "__main__":
         ndocs=2000  
     )
 
-    # Run the retrieval process
-    print("Starting Wikipedia retrieval...")
-    retriever.retrieval()
+    attempt = 0
 
-    # Save the dataset
-    retriever.df_to_parquet()
+    while attempt < MAX_TRIES:
+        try:
+            # Run the retrieval process
+            logging.info('Starting Wikipedia retrieval... Attempt: %d', attempt+1)
+            retriever.retrieval()
 
-    print(f"Dataset saved in {output_dir}/dataset.parquet.gzip")
+            # Save the dataset
+            retriever.df_to_parquet()
+
+            logging.info(f"Dataset saved in %s/dataset.parquet.gzip", output_dir)
+            break
+        except:
+            logging.warning('Network exception ocurred')
+            attempt += 1
+            if attempt < MAX_TRIES:
+                logging.info("Retrying in %d seconds...", 2**attempt)
+                time.sleep(2**attempt)
+            else:
+                logging.error("Max retries reached. Exiting.")
+
