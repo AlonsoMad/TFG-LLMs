@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import logging
+from src.NLPipe.src.pipe import *
 
 class Segmenter():
     '''
@@ -35,6 +36,7 @@ class Segmenter():
                                                                                     "lang",
                                                                                     "url",
                                                                                     "id",
+                                                                                    "equivalence",
                                                                                     "id_preproc"])
         
         self.segmented_df = segmented_df if segmented_df is not None else pd.DataFrame(columns=["title",
@@ -43,6 +45,7 @@ class Segmenter():
                                                                                     "lang",
                                                                                     "url",
                                                                                     "id",
+                                                                                    "equivalence",
                                                                                     "id_preproc"])
         if logger:
             self._logger = logger
@@ -97,6 +100,7 @@ class Segmenter():
                                               row['lang'],
                                               row['url'],
                                               len(self.segmented_df),
+                                              row["equivalence"],
                                               row['id_preproc']+"_"+str(len(self.segmented_df))]
 
           progress = 100*i/len(self.input_df)
@@ -114,3 +118,7 @@ class Segmenter():
         #TODO: Create saving logic?
         return
     
+class Preprocessor():
+   #TODO
+   def __init__(self):
+      pass

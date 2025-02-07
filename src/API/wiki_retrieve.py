@@ -49,13 +49,15 @@ class WikiRetriever():
                                                                                       "summary",
                                                                                       "text",
                                                                                       "lang",
-                                                                                      "url"])
+                                                                                      "url",
+                                                                                      "equivalence"])
 
     self.es_docs_df = es_docs_df if es_docs_df is not None else pd.DataFrame(columns=["title",
                                                                                       "summary",
                                                                                       "text",
                                                                                       "lang",
-                                                                                      "url"])
+                                                                                      "url",
+                                                                                      "equivalence"])
 
     self.agent = agent if agent is not None else wiki.Wikipedia(user_agent=self.project_name, language=self.seed_lan)
 
@@ -86,7 +88,56 @@ class WikiRetriever():
     self.next_doc_stack += titles
 
     return
+  
+  def update_df_notaligned(self, title:str) -> None:
+    '''
+    In case of needing to update the dataframes unbalanced
+    this function will append new entries alternating the 
+    two of them English and Spanish. Apart from that its 
+    function its the same than its sister.
+    '''
 
+
+    query = self.agent.page(title)
+
+
+    #checks if the page is already in the collection
+    repeated_en = self.en_docs_df["title"].eq(query.title).any()
+    repeated_es = self.es_docs_df["title"].eq(query.title).any()
+
+    condition = (repeated_es or repeated_en)
+
+    if query.exists() and "es" in query.langlinks.keys() and not condition:
+
+      #check which lang is more populated
+      if self.doc_en_cnt >= self.doc_es_cnt:
+        #if it is english go with spanish
+        query_esp = query.langlinks["es"]
+        self.es_docs_df.loc[self.doc_es_cnt] = [query_esp.title,
+                                                query_esp.summary,
+                                                query_esp.text,
+                                                "es",
+                                                query.fullurl,
+                                                0]
+        self.doc_es_cnt += 1
+
+      else:
+        #else choose english
+        self.en_docs_df.loc[self.doc_en_cnt] = [query.title,
+                                                query.summary,
+                                                query.text,
+                                                "en",
+                                                query.fullurl,
+                                                0]
+        self.doc_en_cnt += 1
+
+    #whatever it is choose to populate the stack if needed
+      if self.max_size - len(self.next_doc_stack) >= 800:
+          next_titles = query.links.keys()
+          self.update_stack(next_titles)
+
+    return
+  
   def update_dataframes(self, title:str) -> None:
     '''
     Given the title of an entry, checks existence, bilinguality, repetition
@@ -111,7 +162,8 @@ class WikiRetriever():
                                                 query.summary,
                                                 query.text,
                                                 "en",
-                                                query.fullurl]
+                                                query.fullurl,
+                                                1]
         self.doc_en_cnt += 1
 
         #Update the list
@@ -127,11 +179,12 @@ class WikiRetriever():
                                                 query_esp.summary,
                                                 query_esp.text,
                                                 "es",
-                                                query.fullurl]
+                                                query.fullurl,
+                                                1]
         self.doc_es_cnt += 1
     return
 
-  def retrieval(self) -> None:
+  def retrieval(self, alignment: float = 1) -> None:
     '''
     Main loop of the function, will recursively iterate until reaching
     maxdepth called Ndocs.
@@ -143,21 +196,38 @@ class WikiRetriever():
 
     seed_query: str
       The first wikipedia page that will be inserted in the dataset
+
+    aligment: float
+      Percentage of shared documents between the two languages
     '''
+    if alignment > 1 or alignment < 0:
+      raise Exception('Alignment must be bound [0,1]')
+    
+    elif alignment != 1:
+      #get the number of different docs
+      ndocs_notalign = int((1-alignment)*self.ndocs)
+      print(ndocs_notalign)
+      #get each doc in one or other language
+      while (self.doc_en_cnt + self.doc_es_cnt) < ndocs_notalign:
+        if (self.doc_en_cnt + self.doc_es_cnt) == 0:
+          self.update_df_notaligned(self.seed_query)
+        else:
+          new_title = self.next_doc_stack.pop(0)
+          self.update_df_notaligned(new_title)
+
     #until completion
-    while self.doc_en_cnt <= int(self.ndocs/2):
+    while self.doc_en_cnt < int(self.ndocs/2):
       #handle first case
       if self.doc_en_cnt == 0:
         self.update_dataframes(self.seed_query)
+        print(0)
 
       else:
         new_title = self.next_doc_stack.pop(0)
         self.update_dataframes(new_title)
 
-        #aux variable, just to provide feedback
-        progress = (self.doc_en_cnt + self.doc_es_cnt) / self.ndocs * 100 
-
-        if int(progress) % 10 == 0:
+        progress = (self.doc_en_cnt + self.doc_es_cnt) / self.ndocs * 100
+        if progress % 2 == 0:
           print(str(progress) + "%", end = "\r", flush=True)
 
     return
