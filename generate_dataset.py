@@ -1,4 +1,6 @@
 from src.API.wiki_retrieve import *
+from src.topic_modeling.preprocessing import *
+
 import os
 import time
 import logging
@@ -9,7 +11,8 @@ if __name__ == "__main__":
     dir = os.path.dirname(os.path.abspath(__file__))
     father_dir = os.path.split(dir)[0]
 
-    output_dir = os.path.join(father_dir, "DATA")
+    #The directory for the later inputs is the generation output
+    output_dir = os.path.join(father_dir, "Data/input_data")
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -46,4 +49,22 @@ if __name__ == "__main__":
                 time.sleep(2**attempt)
             else:
                 logging.error("Max retries reached. Exiting.")
+
+    #I should change this so it can adapt easily
+    segmentated_dir = '/export/usuarios_ml4ds/ammesa/Data/segmented_data'
+
+    file_name = retriever.final_file_name
+
+    os.makedirs(segmentated_dir, exist_ok=True)
+
+    s = Segmenter(in_directory=output_dir,
+                  file_name=file_name,
+                  out_directory=segmentated_dir)
+    
+    print('Reading data')
+    s.read_dataframe()
+
+    print('Segmenting data')
+    s.segment()
+
 

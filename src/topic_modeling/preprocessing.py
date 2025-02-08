@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import logging
-from src.NLPipe.src.pipe import *
+from datetime import date
 
 class Segmenter():
     '''
@@ -101,7 +101,7 @@ class Segmenter():
                                               row['url'],
                                               len(self.segmented_df),
                                               row["equivalence"],
-                                              row['id_preproc']+"_"+str(len(self.segmented_df))]
+                                              row['id_preproc']+"_"+str(_)]
 
           progress = 100*i/len(self.input_df)
 
@@ -112,13 +112,32 @@ class Segmenter():
               logging.info(f"Progress: {progress}%")
               last_prog = progress            
 
+        en_df = self.segmented_df[self.segmented_df['lang'] == 'en']
+        es_df = self.segmented_df[self.segmented_df['lang'] == 'es']
+
+        self.save_to_parquet(en_df, 'en')
+        self.save_to_parquet(es_df, 'es')
+
         return
+        
+    def save_to_parquet(self, df: pd.DataFrame, lang: str, collab:bool = False) -> None:
     
-    def save_segmented(self) -> None:
-        #TODO: Create saving logic?
-        return
-    
-class Preprocessor():
-   #TODO
-   def __init__(self):
-      pass
+      date_name = str(date.today())
+
+      file_name = f"{lang}_{date_name}_segmented_dataset.parquet.gzip"
+
+      save_path = os.path.join(self.out_directory, file_name)
+
+      if collab:
+        if "drive" not in os.listdir("/content"):
+          from google.colab import drive
+          drive.mount('/content/drive')
+
+        df.to_parquet(path=save_path, compression="gzip")
+        print(f"Saving in Drive: {save_path}")
+
+      else:
+        df.to_parquet(path=save_path, compression="gzip")
+        print(f"Saving in PC: {save_path}")
+
+      return

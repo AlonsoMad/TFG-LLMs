@@ -61,6 +61,8 @@ class WikiRetriever():
 
     self.agent = agent if agent is not None else wiki.Wikipedia(user_agent=self.project_name, language=self.seed_lan)
 
+    self.final_file_name = ''
+
     return
 
   def update_stack(self, titles: dict) -> None:
@@ -75,8 +77,6 @@ class WikiRetriever():
     '''
 
     titles = list(titles)
-
-
 
     #Avoid taking more titles than needed
     window = self.max_size - len(self.next_doc_stack)
@@ -206,7 +206,6 @@ class WikiRetriever():
     elif alignment != 1:
       #get the number of different docs
       ndocs_notalign = int((1-alignment)*self.ndocs)
-      print(ndocs_notalign)
       #get each doc in one or other language
       while (self.doc_en_cnt + self.doc_es_cnt) < ndocs_notalign:
         if (self.doc_en_cnt + self.doc_es_cnt) == 0:
@@ -220,7 +219,6 @@ class WikiRetriever():
       #handle first case
       if self.doc_en_cnt == 0:
         self.update_dataframes(self.seed_query)
-        print(0)
 
       else:
         new_title = self.next_doc_stack.pop(0)
@@ -254,9 +252,10 @@ class WikiRetriever():
     df["id_preproc"] = df["lang"].str.upper() + "_" + df["id"].astype(str)
 
     date_name = str(date.today())
-    file_name = f"dataset_{date_name}.parquet.gzip"
 
-    save_path = os.path.join(self.file_path, file_name)
+    self.final_file_name = f"dataset_{date_name}.parquet.gzip"
+
+    save_path = os.path.join(self.file_path, self.final_file_name)
 
     if collab:
       if "drive" not in os.listdir("/content"):
