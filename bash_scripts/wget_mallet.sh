@@ -2,7 +2,7 @@
 
 URL="https://github.com/mimno/Mallet/releases/download/v202108/Mallet-202108-bin.tar.gz"
 
-OUTPUT_DIR="src/topic__modeling"
+OUTPUT_DIR="../src/topic_modeling"
 OUTPUT_FILE="${OUTPUT_DIR}/Mallet-202108-bin.tar.gz"
 
 mkdir -p $OUTPUT_DIR

@@ -47,7 +47,7 @@ import json
 
 from sklearn.preprocessing import normalize
 
-from src.utils.utils import file_lines
+#from src.utils.utils import file_lines
 
 
 class PolylingualTM(object):
@@ -160,7 +160,8 @@ class PolylingualTM(object):
                 self._docs_lang[lang] = df_lang[df_lang["lang"] == lang]
                 self._lang_lengths[lang] = len(self._docs_lang[lang])
                 
-                df_lang["lemmas"] = np.where(df_lang["lang"] != lang, df_lang["lemmas_tr"], df_lang["lemmas"])
+                # TODO: Uncomment this line? ask lorena
+                #df_lang["lemmas"] = np.where(df_lang["lang"] != lang, df_lang["lemmas_tr"], df_lang["lemmas"])
 
                 if df_lang.empty:
                     self._logger.error(
