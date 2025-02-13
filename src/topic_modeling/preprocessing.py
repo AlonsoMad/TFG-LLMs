@@ -150,6 +150,8 @@ class DataPreparer():
     '''
     def __init__(self,
                 path_folder: str,
+                segmented_path: str,
+                segmented_f_name: str,
                 name_es: str,
                 name_en: str,
                 es_df: pd.DataFrame = None,
@@ -158,6 +160,8 @@ class DataPreparer():
                 storing_path: str = ''):
       
       self.path_folder = path_folder
+      self.segmented_path = segmented_path
+      self.segmented_f_name = segmented_f_name
       self.storing_path = storing_path
       self.name_es = name_es
       self.name_en = name_en
@@ -211,6 +215,18 @@ class DataPreparer():
       #Creating the language column
       self.en_df['lang'] = 'EN'
       self.es_df['lang'] = 'ES'
+
+      #TODO: Check the method works!
+
+      segmented_es_name = 'es' + self.segmented_f_name
+      segmented_en_name = 'en' + self.segmented_f_name
+
+      segmented_es_df = pd.read_parquet(os.path.join(self.segmented_path, segmented_es_name))
+      segmented_en_df = pd.read_parquet(os.path.join(self.segmented_path, segmented_en_name))
+
+      #perform the joins by id, maybe segmented_en_df.use set_index('id')
+      self.en_df = self.en_df.join(segmented_en_df, on='id',how='outer')
+      self.es_df = self.es_df.join(segmented_es_df, on='id',how='outer')
 
       #delete the old id to create a new one
       self.en_df.drop(columns=['id'])

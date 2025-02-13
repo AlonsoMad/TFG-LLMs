@@ -14,10 +14,10 @@ def main():
     print("-- -- Generating training data")
     # TODO: Preprocess corpus, use the methods to generate the correct input for mallet
     
-    prep = DataPreparer('/export/usuarios_ml4ds/ammesa/Data/lemmatized_data',
+    prep = DataPreparer('/export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data',
                         'es',
                         'en',
-                        storing_path='/export/usuarios_ml4ds/ammesa/Data/joined_data')
+                        storing_path='/export/usuarios_ml4ds/ammesa/Data/3_joined_data')
     
     #Get the dataframes in the correct form
     prep.format_dataframes()

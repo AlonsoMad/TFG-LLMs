@@ -12,7 +12,7 @@ if __name__ == "__main__":
     father_dir = os.path.split(dir)[0]
 
     #The directory for the later inputs is the generation output
-    output_dir = os.path.join(father_dir, "Data/input_data")
+    output_dir = os.path.join(father_dir, "Data/0_input_data")
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -51,7 +51,7 @@ if __name__ == "__main__":
                 logging.error("Max retries reached. Exiting.")
 
     #I should change this so it can adapt easily
-    segmentated_dir = '/export/usuarios_ml4ds/ammesa/Data/segmented_data'
+    segmentated_dir = '/export/usuarios_ml4ds/ammesa/Data/1_segmented_data'
 
     file_name = retriever.final_file_name
 
