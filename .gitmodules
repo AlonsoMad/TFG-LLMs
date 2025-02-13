@@ -1,3 +1,6 @@
 [submodule "src/NLPipe"]
 	path = src/NLPipe
 	url = https://github.com/Nemesis1303/NLPipe.git
+[submodule "src/contextualized-topic-models"]
+	path = src/contextualized-topic-models
+	url = https://github.com/MilaNLProc/contextualized-topic-models.git
