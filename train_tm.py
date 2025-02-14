@@ -14,9 +14,11 @@ def main():
     print("-- -- Generating training data")
     # TODO: Preprocess corpus, use the methods to generate the correct input for mallet
     
-    prep = DataPreparer('/export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data',
-                        'es',
-                        'en',
+    prep = DataPreparer(path_folder='/export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data',
+                        segmented_path='/export/usuarios_ml4ds/ammesa/Data/1_segmented_data',
+                        segmented_f_name='_2025-02-08_segmented_dataset.parquet.gzip',
+                        name_es = 'es',
+                        name_en = 'en',
                         storing_path='/export/usuarios_ml4ds/ammesa/Data/3_joined_data')
     
     #Get the dataframes in the correct form

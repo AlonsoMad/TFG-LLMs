@@ -4,3 +4,6 @@
 [submodule "src/contextualized-topic-models"]
 	path = src/contextualized-topic-models
 	url = https://github.com/MilaNLProc/contextualized-topic-models.git
+[submodule "src/CTM"]
+	path = src/CTM
+	url = https://github.com/MilaNLProc/contextualized-topic-models.git

@@ -144,9 +144,41 @@ class Segmenter():
     
 class DataPreparer():
     '''
-    Prepares the outputs of the NLPipe to be fed into mallet. Namely:
-    Joins both datasets into one, differentiating with colum "lang",
-    changes column "text" into "raw_text"
+    Prepares the outputs of the NLPipe to be fed into Mallet. 
+    This involves:
+      - Merging two datasets (English & Spanish) into one, adding a "lang" column.
+      - Renaming the "text" column to "raw_text".
+      - Joining with segmented dataframes based on "id".
+      - Saving the final processed dataframe to a parquet file.
+
+    -------------
+    Parameters:
+    path_folder (str): 
+        The directory where the original English and Spanish datasets are stored.
+    
+    segmented_path (str): 
+        The directory where the segmented datasets are located.
+    
+    segmented_f_name (str): 
+        The base filename of the segmented datasets (without language prefix).
+    
+    name_es (str): 
+        The filename of the Spanish dataset inside `path_folder`.
+    
+    name_en (str): 
+        The filename of the English dataset inside `path_folder`.
+    
+    es_df (pd.DataFrame, optional): 
+        A pandas DataFrame holding the Spanish dataset. Defaults to None (will be loaded from `name_es`).
+    
+    en_df (pd.DataFrame, optional): 
+        A pandas DataFrame holding the English dataset. Defaults to None (will be loaded from `name_en`).
+    
+    final_df (pd.DataFrame, optional): 
+        The final merged dataset. Defaults to an empty DataFrame with predefined columns.
+    
+    storing_path (str, optional): 
+        The directory where the processed dataset will be saved. Defaults to an empty string.
     '''
     def __init__(self,
                 path_folder: str,
@@ -217,7 +249,7 @@ class DataPreparer():
       self.es_df['lang'] = 'ES'
 
       #TODO: Check the method works!
-
+      '''
       segmented_es_name = 'es' + self.segmented_f_name
       segmented_en_name = 'en' + self.segmented_f_name
 
@@ -225,12 +257,13 @@ class DataPreparer():
       segmented_en_df = pd.read_parquet(os.path.join(self.segmented_path, segmented_en_name))
 
       #perform the joins by id, maybe segmented_en_df.use set_index('id')
-      self.en_df = self.en_df.join(segmented_en_df, on='id',how='outer')
-      self.es_df = self.es_df.join(segmented_es_df, on='id',how='outer')
+      self.en_df = self.en_df.merge(segmented_en_df, on='id', how='outer', suffixes=('', '_seg'))
+      self.es_df = self.es_df.merge(segmented_es_df, on='id', how='outer', suffixes=('', '_seg'))
 
       #delete the old id to create a new one
       self.en_df.drop(columns=['id'])
       self.es_df.drop(columns=['id'])
+      '''
 
       #merge
       self.final_df = pd.concat([self.en_df, self.es_df], ignore_index=True)
