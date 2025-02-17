@@ -43,9 +43,14 @@ class ContextualTM(object):
         self.model = None
         self.training_dataset = None
         self.test_dataset = None
+        #borrar estos datos manuales
         self.thetas = None
         self.betas = None
         self.topics = None
+        self.vocab = None
+
+        #Usar la función built-in directamente
+        self.ldavis_data = None
 
         #Create the empty lists for the corpuses
         self.corpus_og = corpus_og if corpus_og is not None else list()
@@ -108,6 +113,8 @@ class ContextualTM(object):
         self.training_dataset = self.preparer.fit(text_for_contextual=self.corpus_og,
                                                   text_for_bow=self.corpus_pre)
 
+        self.vocab = self.preparer.vocab
+
         return
     
     def train(self, num_topics: int = 5, num_epochs: int = 50) -> None:
@@ -141,7 +148,6 @@ class ContextualTM(object):
         
         return
     
-    #TODO: Create storing logic
     def create_folder_structure(self) -> None:
         '''
         Creates a folder structure like:
@@ -153,7 +159,9 @@ class ContextualTM(object):
             -- zeroshot_output:
                 ---- thetas.npy
                 ---- betas.npy
-                ---- topics.txt
+                ---- vocab.txt
+                ---- topic_lengths.npy
+                ---- topics.json
         '''
 
         #Create the subdirectories
@@ -186,41 +194,74 @@ class ContextualTM(object):
 
         Both corpuses, the raw text and the lemmas stored as a .txt file
 
-        The thetas and betas stored as  .npy documents for quick I/O
+        The thetas and betas stored as .npy documents
         '''
         #Ensure the directories are created correctly
         self.create_folder_structure()
 
+        #Obtain all the necessary results for the ldavis step
+
+        results = self.model.get_ldavis_data_format(self.vocab,
+                                                    self.training_dataset,
+                                                    n_samples=10)
+
         #Check the existence of original_corpus.txt
         if os.path.exists(os.path.join(self.output_path,self.corpus_path,'original_corpus.txt')):
             self._logger.warning('Warning overwriting original corpus')
+
         with open('original_corpus.txt', 'w') as f:
             for element in self.corpus_og:
-                f.write('%s\n' % element)
+                f.write(f'{element}\n')
 
         if os.path.exists(os.path.join(self.output_path,self.corpus_path,'preprocessed_corpus.txt')):
             self._logger.warning('Warning overwriting preprocessed corpus')
+
         with open('preprocessed_corpus.txt', 'w') as f:
             for element in self.corpus_pre:
-                f.write('%s\n' % element)
+                f.write(f'{element}\n')
 
-        #Now thetas and betas
+        #Now the outputs for pyLDAvis
         ZS_path = os.path.join(self.output_path, self.ZS_output_path)
         os.makedirs(ZS_path, exist_ok=True)
 
+        # THETAS
         theta_path = os.path.join(ZS_path, 'thetas.npy')
-        np.save(theta_path, self.thetas)
+
+        thetas = results['doc_topic_dists']
+        np.save(theta_path, thetas)
         self._logger.info(f'Thetas saved in {theta_path}')
 
+        # BETAS
         beta_path = os.path.join(ZS_path, 'betas.npy')
-        np.save(beta_path, self.betas)
+
+        betas = results['topic_term_dists']
+        np.save(beta_path, betas)
         self._logger.info(f'Betas saved in {beta_path}')
 
+        # TOPICS
         topic_path = os.path.join(ZS_path, 'topics.json')
         with open(topic_path, "w", encoding="utf-8") as f:
             json.dump(self.topics, f, indent=4, ensure_ascii=False)
         self._logger.info(f'Topics saved in {topic_path}')
 
+        # DOC LENGTHS    
+        doc_l_path = os.path.join(ZS_path, 'doc_len.npy')
+
+        doc_len = results['doc_lengths']
+        np.save(doc_l_path, doc_len)
+        self._logger.info(f'Doc length saved in {doc_l_path}')
+
+        # TERM DIST
+        term_f_path = os.path.join(ZS_path, 'term_freq.npy')
+        frequencies = results['term_frequency']
+        np.save(term_f_path, frequencies)
+        self._logger.info(f'Term distribution saved in {term_f_path}')
+
+        # VOCAB
+        vocab_path = os.path.join(ZS_path, 'vocab.txt')
+        with open(vocab_path, 'w') as f:
+            for word in self.vocab:
+                f.write(f'{word}\n')
         
         return
     

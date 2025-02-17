@@ -11,12 +11,29 @@ if __name__ == "__main__":
     dir = os.path.dirname(os.path.abspath(__file__))
     father_dir = os.path.split(dir)[0]
 
-    #The directory for the later inputs is the generation output
-    output_dir = os.path.join(father_dir, "Data/0_input_data")
-
-    os.makedirs(output_dir, exist_ok=True)
-
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+    # Handles the creation of the enviroment folders
+    # In case the execution is in a new computer
+    dir_structure = {'Data':['0_input_data',
+                             '1_segmented_data',
+                             '2_lemmatized_data',
+                             '3_joined_data']}
+
+    for main_dir, subdirs in dir_structure.items():
+
+        #Create the parent directory
+        main_path = os.path.join(father_dir, main_dir)
+
+        for subdir in subdirs:
+            #Populate with subdirectories
+            sub_path = os.path.join(main_path, subdir)
+            sub_path.mkdir(exist_ok=True)
+
+            logging.info(f'Subdirectory {sub_path} correctly created!')
+
+
+    output_dir = os.path.join(father_dir, 'Data/0_input_data')
 
     MAX_TRIES = 5
     

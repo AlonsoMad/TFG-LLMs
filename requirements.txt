@@ -100,6 +100,7 @@ pydantic==1.10.7
 pyfiglet==0.7
 pyFUME==0.2.25
 Pygments==2.15.1
+pyldavis
 pynvml==11.4.1
 pyrsistent==0.19.3
 pyspark==3.4.0
