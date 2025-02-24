@@ -19,7 +19,8 @@ fi
 
 python3 -m src.NLPipe.nlpipe \
     --source_path /export/usuarios_ml4ds/ammesa/Data/1_segmented_data \
-    --source en_2025-02-08_segmented_dataset.parquet.gzip \
-    --destination_path /export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data/en \
+    --source es_2025-02-20_segmented_dataset.parquet.gzip \
+    --destination_path /export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data/es \
     --stw_path /export/usuarios_ml4ds/ammesa/TFG-LLMs/src/topic_modeling/stops \
-    --lang en
+    --lang es \
+    --do_embeddings 

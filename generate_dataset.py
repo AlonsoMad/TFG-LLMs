@@ -28,9 +28,11 @@ if __name__ == "__main__":
         for subdir in subdirs:
             #Populate with subdirectories
             sub_path = os.path.join(main_path, subdir)
-            sub_path.mkdir(exist_ok=True)
 
-            logging.info(f'Subdirectory {sub_path} correctly created!')
+            if not os.path.exists(sub_path):
+                os.mkdir(sub_path,exist_ok=True)
+
+                logging.info(f'Subdirectory {sub_path} correctly created!')
 
 
     output_dir = os.path.join(father_dir, 'Data/0_input_data')

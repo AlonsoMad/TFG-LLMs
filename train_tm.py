@@ -26,7 +26,7 @@ def main():
 
     print("-- -- Training PolyLingual Topic Model")
     # Train PolyLingual Topic Model
-    for k in [5,10]:  #[30,5,10,15,20,50]:
+    for k in [5]:  #[30,5,10,15,20,50]:
         # model = LDATM(
         model = PolylingualTM(
             lang1="EN",

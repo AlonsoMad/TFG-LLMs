@@ -159,6 +159,8 @@ class PolylingualTM(object):
                 
                 self._docs_lang[lang] = df_lang[df_lang["lang"] == lang]
                 self._lang_lengths[lang] = len(self._docs_lang[lang])
+
+                import pdb; pdb.set_trace()
                 
                 # TODO: Uncomment this line? ask lorena
                 #df_lang["lemmas"] = np.where(df_lang["lang"] != lang, df_lang["lemmas_tr"], df_lang["lemmas"])

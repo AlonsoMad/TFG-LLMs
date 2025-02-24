@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import logging
 from datetime import date
+from transformers import pipeline
 
 class Segmenter():
     '''
@@ -29,6 +30,9 @@ class Segmenter():
         self.in_directory = in_directory
         self.file_name = file_name
         self.out_directory = out_directory
+
+        self.en_df = None
+        self.es_df = None
 
         self.input_df = input_df if input_df is not None else pd.DataFrame(columns=["title",
                                                                                     "summary",
@@ -112,11 +116,13 @@ class Segmenter():
               logging.info(f"Progress: {progress}%")
               last_prog = progress            
 
-        en_df = self.segmented_df[self.segmented_df['lang'] == 'en']
-        es_df = self.segmented_df[self.segmented_df['lang'] == 'es']
+        self.en_df = self.segmented_df[self.segmented_df['lang'] == 'en']
+        self.es_df = self.segmented_df[self.segmented_df['lang'] == 'es']
 
-        self.save_to_parquet(en_df, 'en')
-        self.save_to_parquet(es_df, 'es')
+        #TODO: implement machine translation functionality
+
+        self.save_to_parquet(self.en_df, 'en')
+        self.save_to_parquet(self.es_df, 'es')
 
         return
         
@@ -248,22 +254,12 @@ class DataPreparer():
       self.en_df['lang'] = 'EN'
       self.es_df['lang'] = 'ES'
 
-      #TODO: Check the method works!
-      '''
-      segmented_es_name = 'es' + self.segmented_f_name
-      segmented_en_name = 'en' + self.segmented_f_name
+      #There have been cases of spanish instances in the english df and viceversa
+      if self.en_df['id'].str.startswith('ES_').any:
+        self.en_df = self.en_df[~self.en_df['id'].str.startswith('ES_')]
 
-      segmented_es_df = pd.read_parquet(os.path.join(self.segmented_path, segmented_es_name))
-      segmented_en_df = pd.read_parquet(os.path.join(self.segmented_path, segmented_en_name))
-
-      #perform the joins by id, maybe segmented_en_df.use set_index('id')
-      self.en_df = self.en_df.merge(segmented_en_df, on='id', how='outer', suffixes=('', '_seg'))
-      self.es_df = self.es_df.merge(segmented_es_df, on='id', how='outer', suffixes=('', '_seg'))
-
-      #delete the old id to create a new one
-      self.en_df.drop(columns=['id'])
-      self.es_df.drop(columns=['id'])
-      '''
+      if self.es_df['id'].str.startswith('EN_').any:
+        self.es_df = self.es_df[~self.es_df['id'].str.startswith('EN_')]
 
       #merge
       self.final_df = pd.concat([self.en_df, self.es_df], ignore_index=True)
@@ -287,3 +283,120 @@ class DataPreparer():
       print(f"Saving in PC: {save_path}")
 
       return
+    
+class Translator():
+    '''
+    Initializes the Hugging Face model and defines as a function
+    the pipeline to translate the segmented text afterwards.
+
+    Once translated it recombines the datasets into a suitable format
+    ---------------------
+    Parameters:
+      Takes no parameters
+    '''
+    def __init__(self,
+                 en_df: pd.DataFrame,
+                 es_df: pd.DataFrame
+                 ):
+
+      self.model_es_en = pipeline("translation", model="Helsinki-NLP/opus-mt-es-en")
+      self.model_en_es = pipeline("translation", model="Helsinki-NLP/opus-mt-en-es")
+
+      self.en_df = en_df
+      self.es_df = es_df 
+
+      self.split_es_df = None
+      self.split_en_df = None
+
+      self.trans_text_es = None
+      self.trans_text_en = None
+
+      self.translated_df_es = None
+      self.translated_df_en = None
+      return
+
+    def split(self, dataframe: pd.DataFrame, language: str) -> None:
+      '''
+      Takes an input dataset and splits its raw_text column into phrases separated by
+      the dot (.)
+      ----------------
+      Parameters:
+        dataframe: A Pandas dataframe that has been previously segmented into paragraphs. 
+      '''
+
+      for i, row in dataframe.iterrows():
+         
+          split_text = row['text'].split(". ")
+
+          filtered_text = filter(lambda x: x!='', split_text)
+
+          phrases = list(filtered_text)
+
+          for _, p in enumerate(phrases):
+             
+            if dataframe['lang'] == 'es':
+
+                self.split_es_df.loc[len(self.split_es_df)] = [row['title'],
+                                  row['summary'],
+                                  p,
+                                  row['lang'],
+                                  row['url'],
+                                  len(self.split_es_df),
+                                  row["equivalence"],
+                                  row['id_preproc']+"_"+str(_)]
+            else:
+               
+                self.split_en_df.loc[len(self.split_en_df)] = [row['title'],
+                                  row['summary'],
+                                  p,
+                                  row['lang'],
+                                  row['url'],
+                                  len(self.split_en_df),
+                                  row["equivalence"],
+                                  row['id_preproc']+"_"+str(_)]   
+            
+      return
+
+    def translate(self) -> None:
+       '''
+       Translates the dataframes to the other respective language
+       using hugginface OPUS model
+       '''       
+       self.trans_text_en = self.split_es_df['text'].map(lambda x: self.model_es_en(x))
+        
+       self.trans_text_es = self.split_en_df['text'].map(lambda x: self.model_en_es(x))
+
+      #Changes format to strings
+       self.trans_text_en = self.trans_text_en.explode().apply(lambda x: x["translation_text"] if isinstance(x, dict) else None)
+
+       self.trans_text_es = self.trans_text_es.explode().apply(lambda x: x["translation_text"] if isinstance(x, dict) else None)
+         
+       return
+    
+    def assemble_dataframes(self) -> None:
+       '''
+       Prepares the final datasets to be saved by the segmenter, 
+       substitutes the new translated column, in the df, groups by 
+       paragraph and concatenates to the original datasets
+       '''
+       #First update the split datasets with the translated columns
+       self.split_es_df['text'] = self.trans_text_es 
+       self.split_en_df['text'] = self.trans_text_en 
+
+       #Now I concatenate from phrases to paragraphs
+
+       self.split_es_df["aux_id"] = self.split_es_df["id"].str.rsplit("_", n=1).str[0]
+
+        # Group by parent_id and concatenate children's text
+       self.split_es_df = self.split_es_df.groupby("aux_id")["text"].apply(lambda x: " ".join(x)).reset_index()
+
+       return
+
+
+
+
+    def save(self) -> None:
+       pass
+    
+
+    
