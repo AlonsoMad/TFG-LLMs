@@ -284,6 +284,7 @@ class DataPreparer():
 
       return
     
+    
 class Translator():
     '''
     Initializes the Hugging Face model and defines as a function
@@ -300,7 +301,7 @@ class Translator():
                  ):
 
       self.model_es_en = pipeline("translation", model="Helsinki-NLP/opus-mt-es-en")
-      self.model_en_es = pipeline("translation", model="Helsinki-NLP/opus-mt-en-es")
+      self.model_en_es = pipeline("translation", model='Helsinki-NLP/opus-mt-en-es')
 
       self.en_df = en_df
       self.es_df = es_df 
@@ -323,6 +324,8 @@ class Translator():
       Parameters:
         dataframe: A Pandas dataframe that has been previously segmented into paragraphs. 
       '''
+      #I append to lists not to pd.DataFrames
+      data = []
 
       for i, row in dataframe.iterrows():
          
@@ -334,27 +337,29 @@ class Translator():
 
           for _, p in enumerate(phrases):
              
-            if dataframe['lang'] == 'es':
+             new_row = [
+              row["title"], row["summary"], p, row["lang"], row["url"],
+              None, #For the dynamic ID
+              row["equivalence"], row["id_preproc"] + "_" + str(_)
+             ]
 
-                self.split_es_df.loc[len(self.split_es_df)] = [row['title'],
-                                  row['summary'],
-                                  p,
-                                  row['lang'],
-                                  row['url'],
-                                  len(self.split_es_df),
-                                  row["equivalence"],
-                                  row['id_preproc']+"_"+str(_)]
-            else:
-               
-                self.split_en_df.loc[len(self.split_en_df)] = [row['title'],
-                                  row['summary'],
-                                  p,
-                                  row['lang'],
-                                  row['url'],
-                                  len(self.split_en_df),
-                                  row["equivalence"],
-                                  row['id_preproc']+"_"+str(_)]   
-            
+             data.append(new_row)
+             
+      if language == 'en':
+
+        en_df = pd.DataFrame(data, columns=["title", "summary", "text", "lang", "url", "index", "equivalence", "id_preproc"])
+        en_df["index"] = range(len(en_df))
+        self.split_en_df = en_df          
+
+      elif language == 'es':
+
+        es_df = pd.DataFrame(data, columns=["title", "summary", "text", "lang", "url", "index", "equivalence", "id_preproc"])
+        es_df["index"] = range(len(es_df))
+        self.split_es_df = es_df
+
+      else:
+         raise(Exception(f'The language: {language} is not supported!'))
+
       return
 
     def translate(self) -> None:
@@ -380,21 +385,57 @@ class Translator():
        paragraph and concatenates to the original datasets
        '''
        #First update the split datasets with the translated columns
-       self.split_es_df['text'] = self.trans_text_es 
-       self.split_en_df['text'] = self.trans_text_en 
+       self.split_en_df['text'] = self.trans_text_es 
+       self.split_es_df['text'] = self.trans_text_en 
+
+       print(self.split_en_df.head(5))
 
        #Now I concatenate from phrases to paragraphs
 
-       self.split_es_df["aux_id"] = self.split_es_df["id"].str.rsplit("_", n=1).str[0]
+       self.split_es_df["aux_id"] = self.split_es_df["id_preproc"].str.rsplit("_", n=1).str[0]
+       self.split_en_df["aux_id"] = self.split_en_df["id_preproc"].str.rsplit("_", n=1).str[0]
+       
+       
+       grouped_es = (self.split_es_df
+                     .groupby("aux_id")["text"]
+                     .agg(lambda x: ' '.join(x.astype(str).str.strip()))
+                     .reset_index()
+                     .rename(columns={"text": "assembled_text"}))
+       grouped_en = (self.split_en_df
+                     .groupby("aux_id")["text"]
+                     .agg(lambda x: ' '.join(x.astype(str).str.strip()))
+                     .reset_index()
+                     .rename(columns={"text": "assembled_text"}))
+                       
+       #Erase and ename columns
+       merged_es_df = (self.split_es_df
+                      .merge(grouped_es, on="aux_id", how="outer")
+                      .drop(columns=['text', 'id_preproc'])
+                      .rename(columns={'aux_id': 'id_preproc', 
+                                      'assembled_text': 'text'})
+                      .drop_duplicates(subset=['id_preproc'])
+                      .assign(id_preproc=lambda x: 'T_' + x['id_preproc'])
+                      .assign(lang=lambda x: 'en')
+                      .reset_index(drop=True))
+        
+       merged_en_df = (self.split_en_df
+                      .merge(grouped_en, on="aux_id", how="outer")
+                      .drop(columns=['text', 'id_preproc'])
+                      .rename(columns={'aux_id': 'id_preproc', 
+                                      'assembled_text': 'text'})
+                      .drop_duplicates(subset=['id_preproc'])
+                      .assign(lang=lambda x: 'es')
+                      .reset_index(drop=True))
+       
+       #Now concatenate the translated to en dataset with the original en dataset
+       self.translated_df_en = pd.concat([self.en_df, merged_es_df], ignore_index=True)
+       self.translated_df_es = pd.concat([self.es_df, merged_en_df], ignore_index=True)
+       
 
-        # Group by parent_id and concatenate children's text
-       self.split_es_df = self.split_es_df.groupby("aux_id")["text"].apply(lambda x: " ".join(x)).reset_index()
-
-       return
+       return 
 
 
-
-
+       
     def save(self) -> None:
        pass
     
