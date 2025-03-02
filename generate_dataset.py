@@ -86,4 +86,10 @@ if __name__ == "__main__":
     print('Segmenting data')
     s.segment()
 
+    #Finally translating and completing the datasets
+    trans = Translator(s.en_df, s.es_df)
+
+    trans.translate()
+
+    trans.save_dataframes(segmentated_dir)
 

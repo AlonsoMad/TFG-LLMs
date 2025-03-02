@@ -2,7 +2,8 @@ import pandas as pd
 import os
 import logging
 from datetime import date
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer
+from datasets import Dataset
 
 class Segmenter():
     '''
@@ -148,142 +149,6 @@ class Segmenter():
 
       return
     
-class DataPreparer():
-    '''
-    Prepares the outputs of the NLPipe to be fed into Mallet. 
-    This involves:
-      - Merging two datasets (English & Spanish) into one, adding a "lang" column.
-      - Renaming the "text" column to "raw_text".
-      - Joining with segmented dataframes based on "id".
-      - Saving the final processed dataframe to a parquet file.
-
-    -------------
-    Parameters:
-    path_folder (str): 
-        The directory where the original English and Spanish datasets are stored.
-    
-    segmented_path (str): 
-        The directory where the segmented datasets are located.
-    
-    segmented_f_name (str): 
-        The base filename of the segmented datasets (without language prefix).
-    
-    name_es (str): 
-        The filename of the Spanish dataset inside `path_folder`.
-    
-    name_en (str): 
-        The filename of the English dataset inside `path_folder`.
-    
-    es_df (pd.DataFrame, optional): 
-        A pandas DataFrame holding the Spanish dataset. Defaults to None (will be loaded from `name_es`).
-    
-    en_df (pd.DataFrame, optional): 
-        A pandas DataFrame holding the English dataset. Defaults to None (will be loaded from `name_en`).
-    
-    final_df (pd.DataFrame, optional): 
-        The final merged dataset. Defaults to an empty DataFrame with predefined columns.
-    
-    storing_path (str, optional): 
-        The directory where the processed dataset will be saved. Defaults to an empty string.
-    '''
-    def __init__(self,
-                path_folder: str,
-                segmented_path: str,
-                segmented_f_name: str,
-                name_es: str,
-                name_en: str,
-                es_df: pd.DataFrame = None,
-                en_df: pd.DataFrame = None,
-                final_df: pd.DataFrame = None,
-                storing_path: str = ''):
-      
-      self.path_folder = path_folder
-      self.segmented_path = segmented_path
-      self.segmented_f_name = segmented_f_name
-      self.storing_path = storing_path
-      self.name_es = name_es
-      self.name_en = name_en
-      
-      self.es_df = None
-      self.en_df = None
-      self.final_df = final_df if final_df is not None else pd.DataFrame(columns=['id',
-                                                                                  'raw_text',
-                                                                                  'lemmas',
-                                                                                  'lang'])
-
-      return
-   
-    def read_dataframes(self) -> None:
-      '''
-      From the path, checks the path, checks the files
-      stores them into the object as pd.Dataframes
-      '''
-      for df in [self.name_en, self.name_es]:
-        if not os.path.exists(self.path_folder):
-          raise Exception('Path not found, check again')
-
-        elif not os.path.isfile(os.path.join(self.path_folder, df)):
-          raise Exception(f'File {df} not found, check again')
-
-        else:
-          dataframe = pd.read_parquet(os.path.join(self.path_folder, df))
-
-          if df == self.name_en:
-              self.en_df = dataframe
-
-          elif df == self.name_es:
-              self.es_df = dataframe
-
-          else:
-              raise Exception(f'The name {df} does not exist in folder!')
-          
-          print(f"File {df} read sucessfully!")
-
-      return
-   
-    def format_dataframes(self) -> None:
-      '''
-      Formats correctly the dataframes in en & es by joining them and 
-      adding the correct columns
-
-      '''
-
-      self.read_dataframes()
-
-      #Creating the language column
-      self.en_df['lang'] = 'EN'
-      self.es_df['lang'] = 'ES'
-
-      #There have been cases of spanish instances in the english df and viceversa
-      if self.en_df['id'].str.startswith('ES_').any:
-        self.en_df = self.en_df[~self.en_df['id'].str.startswith('ES_')]
-
-      if self.es_df['id'].str.startswith('EN_').any:
-        self.es_df = self.es_df[~self.es_df['id'].str.startswith('EN_')]
-
-      #merge
-      self.final_df = pd.concat([self.en_df, self.es_df], ignore_index=True)
-
-      #create new index
-      self.final_df['doc_id'] = self.final_df.index
-
-      self.save_to_parquet()
-
-      return
-      
-    def save_to_parquet(self) -> None:
-      '''
-      Saves changes ot parquet
-      '''
-      file_name = 'polylingual_df'
-
-      save_path = os.path.join(self.storing_path, file_name)
-
-      self.final_df.to_parquet(path=save_path, compression="gzip")
-      print(f"Saving in PC: {save_path}")
-
-      return
-    
     
 class Translator():
     '''
@@ -314,7 +179,12 @@ class Translator():
 
       self.translated_df_es = None
       self.translated_df_en = None
+
+      self.tokenizer_es_en = AutoTokenizer.from_pretrained('Helsinki-NLP/opus-mt-es-en')
+      self.tokenizer_en_es = AutoTokenizer.from_pretrained('Helsinki-NLP/opus-mt-en-es')
+
       return
+    
 
     def split(self, dataframe: pd.DataFrame, language: str) -> None:
       '''
@@ -324,6 +194,10 @@ class Translator():
       Parameters:
         dataframe: A Pandas dataframe that has been previously segmented into paragraphs. 
       '''
+      def get_token_length(text):
+        return len(tokenizer.encode(text, truncation=False))
+      
+      max_tokens  = int(512*0.9)
       #I append to lists not to pd.DataFrames
       data = []
 
@@ -335,16 +209,33 @@ class Translator():
 
           phrases = list(filtered_text)
 
-          for _, p in enumerate(phrases):
-             
-             new_row = [
-              row["title"], row["summary"], p, row["lang"], row["url"],
-              None, #For the dynamic ID
-              row["equivalence"], row["id_preproc"] + "_" + str(_)
-             ]
+          #used to check max lengths
+          if row['lang'] == 'es':
+             tokenizer = self.tokenizer_es_en 
+          else:
+             tokenizer = self.tokenizer_en_es
 
-             data.append(new_row)
+          for _, p in enumerate(phrases):
+
+            #Handle sentences over token limit
+            if get_token_length(p) < max_tokens:
              
+              new_row = [
+                row["title"], row["summary"], p, row["lang"], row["url"],
+                None, #For the dynamic ID
+                row["equivalence"], row["id_preproc"] + "_" + str(_)
+              ]
+
+              data.append(new_row)
+
+              valid_entry = True      
+
+          if not valid_entry:
+            if row['lang'] == 'es':
+                self.es_df = self.es_df[self.es_df['id_preproc'] != row['id_preproc']]
+            else:
+                self.en_df = self.en_df[self.en_df['id_preproc'] != row['id_preproc']]        
+              
       if language == 'en':
 
         en_df = pd.DataFrame(data, columns=["title", "summary", "text", "lang", "url", "index", "equivalence", "id_preproc"])
@@ -363,20 +254,48 @@ class Translator():
       return
 
     def translate(self) -> None:
-       '''
-       Translates the dataframes to the other respective language
-       using hugginface OPUS model
-       '''       
-       self.trans_text_en = self.split_es_df['text'].map(lambda x: self.model_es_en(x))
+        '''
+        Translates the dataframes to the other respective language
+        using Hugging Face OPUS model
+        '''       
+
+        self.split(self.en_df, 'en')
+        self.split(self.es_df, 'es')
+
+        # Convert Pandas DataFrames to Hugging Face Datasets
+        ds_en = Dataset.from_pandas(self.split_en_df)
+
+        ds_es = Dataset.from_pandas(self.split_es_df)
+
+        '''
+        self.trans_text_en = self.split_es_df['text'].map(lambda x: self.model_es_en(x))
         
-       self.trans_text_es = self.split_en_df['text'].map(lambda x: self.model_en_es(x))
+        self.trans_text_es = self.split_en_df['text'].map(lambda x: self.model_en_es(x))
 
-      #Changes format to strings
-       self.trans_text_en = self.trans_text_en.explode().apply(lambda x: x["translation_text"] if isinstance(x, dict) else None)
+       #Changes format to strings
+        self.trans_text_en = self.trans_text_en.explode().apply(lambda x: x["translation_text"] if isinstance(x, dict) else None)
 
-       self.trans_text_es = self.trans_text_es.explode().apply(lambda x: x["translation_text"] if isinstance(x, dict) else None)
-         
-       return
+        self.trans_text_es = self.trans_text_es.explode().apply(lambda x: x["translation_text"] if isinstance(x, dict) else None)        
+        '''
+        def translate_text(batch, model):
+            translation_list = model(batch['text'])
+            batch['translated_text'] = [text['translation_text'] for text in translation_list]
+            return batch
+        
+        # Apply translation using Dataset.map()
+        ds_en = ds_en.map(lambda batch: translate_text(batch, self.model_en_es), batched=True)
+        ds_es = ds_es.map(lambda batch: translate_text(batch, self.model_es_en), batched=True)
+
+        self.trans_text_en = ds_es.to_pandas()['translated_text']
+        self.trans_text_es = ds_en.to_pandas()['translated_text']
+            
+        # First update the split datasets with the translated columns
+        self.split_en_df['text'] = self.trans_text_es 
+        self.split_es_df['text'] = self.trans_text_en 
+
+        self.assemble_dataframes()
+        return
+
     
     def assemble_dataframes(self) -> None:
        '''
@@ -387,8 +306,6 @@ class Translator():
        #First update the split datasets with the translated columns
        self.split_en_df['text'] = self.trans_text_es 
        self.split_es_df['text'] = self.trans_text_en 
-
-       print(self.split_en_df.head(5))
 
        #Now I concatenate from phrases to paragraphs
 
@@ -424,6 +341,7 @@ class Translator():
                       .rename(columns={'aux_id': 'id_preproc', 
                                       'assembled_text': 'text'})
                       .drop_duplicates(subset=['id_preproc'])
+                      .assign(id_preproc=lambda x: 'T_' + x['id_preproc'])
                       .assign(lang=lambda x: 'es')
                       .reset_index(drop=True))
        
@@ -436,8 +354,19 @@ class Translator():
 
 
        
-    def save(self) -> None:
-       pass
-    
+    def save_dataframes(self, path: str) -> None:
+       date_name = str(date.today())
+       
+       fname_en = f'en_{date_name}_segm_trans'
+       fname_es = f'es_{date_name}_segm_trans'
 
-    
+       save_path_en = os.path.join(path, fname_en)
+       save_path_es = os.path.join(path, fname_es)
+
+       self.translated_df_en.to_parquet(path=save_path_en, compression="gzip")
+       print(f"Saving in PC: {save_path_en}")
+
+       self.translated_df_es.to_parquet(path=save_path_es, compression="gzip")
+       print(f"Saving in PC: {save_path_es}")
+       return
+  
