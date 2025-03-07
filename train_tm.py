@@ -1,4 +1,5 @@
 import pathlib
+import os
 from src.topic_modeling.polylingual_tm import PolylingualTM
 from src.topic_modeling.preprocessing import DataPreparer
 #from src.topic_modeling.lda_tm import LDATM
@@ -15,8 +16,6 @@ def main():
     # TODO: Preprocess corpus, use the methods to generate the correct input for mallet
     
     prep = DataPreparer(path_folder='/export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data',
-                        segmented_path='/export/usuarios_ml4ds/ammesa/Data/1_segmented_data',
-                        segmented_f_name='_2025-02-08_segmented_dataset.parquet.gzip',
                         name_es = 'es',
                         name_en = 'en',
                         storing_path='/export/usuarios_ml4ds/ammesa/Data/3_joined_data')
@@ -35,7 +34,7 @@ def main():
             #model_folder = pathlib.Path(f"/export/usuarios_ml4ds/lbartolome/Repos/umd/LinQAForge/data/models/29_dec/LDA/lda_rosie_{str(sample)}_{k}"),
             num_topics=k
         )
-        model.train(prep.storing_path)
+        model.train(os.path.join(prep.storing_path, 'polylingual_df'))
     
 if __name__ == "__main__":
     main()

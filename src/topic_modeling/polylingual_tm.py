@@ -159,9 +159,8 @@ class PolylingualTM(object):
                 
                 self._docs_lang[lang] = df_lang[df_lang["lang"] == lang]
                 self._lang_lengths[lang] = len(self._docs_lang[lang])
+                self._docs_lang_c = self._docs_lang.copy()
 
-                import pdb; pdb.set_trace()
-                
                 # TODO: Uncomment this line? ask lorena
                 #df_lang["lemmas"] = np.where(df_lang["lang"] != lang, df_lang["lemmas_tr"], df_lang["lemmas"])
 
@@ -172,8 +171,9 @@ class PolylingualTM(object):
                 corpus_txt_path = self._train_data_folder / f"corpus_{lang}.txt"
                 self._logger.info(
                     f"-- -- Creating Mallet {corpus_txt_path.as_posix()}...")
+                import pdb; pdb.set_trace()
                 with corpus_txt_path.open("w", encoding="utf8") as fout:
-                    for i, t in zip(df_lang.doc_id, df_lang.lemmas):
+                    for i, t in zip(self._docs_lang[lang].doc_id, self._docs_lang[lang].lemmas):
                         fout.write(f"{i} {lang.upper()} {t}\n")
                 self._logger.info(
                     f"-- -- Mallet {corpus_txt_path.as_posix()} created.")

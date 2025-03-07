@@ -369,4 +369,133 @@ class Translator():
        self.translated_df_es.to_parquet(path=save_path_es, compression="gzip")
        print(f"Saving in PC: {save_path_es}")
        return
-  
+    
+class DataPreparer():
+  '''
+  Prepares the outputs of the NLPipe to be fed into mallet. Namely:
+  Joins both datasets into one, differentiating with colum "lang",
+  changes column "text" into "raw_text"
+  '''
+  def __init__(self,
+              path_folder: str,
+              name_es: str,
+              name_en: str,
+              final_df: pd.DataFrame = None,
+              storing_path: str = ''):
+    
+    self.path_folder = path_folder
+    self.storing_path = storing_path
+    self.name_es = name_es
+    self.name_en = name_en
+    
+    self.es_df = None
+    self.en_df = None
+    self.final_df = final_df if final_df is not None else pd.DataFrame(columns=['id',
+                                                                                'raw_text',
+                                                                                'lemmas',
+                                                                                'lang'])
+
+    return
+
+  def read_dataframes(self) -> None:
+    '''
+    From the path, checks the path, checks the files
+    stores them into the object as pd.Dataframes
+    '''
+    for df in [self.name_en, self.name_es]:
+      if not os.path.exists(self.path_folder):
+        raise Exception('Path not found, check again')
+
+      elif not os.path.isfile(os.path.join(self.path_folder, df)):
+        raise Exception(f'File {df} not found, check again')
+
+      else:
+        dataframe = pd.read_parquet(os.path.join(self.path_folder, df))
+
+        if df == self.name_en:
+            self.en_df = dataframe
+
+        elif df == self.name_es:
+            self.es_df = dataframe
+
+        else:
+            raise Exception(f'The name {df} does not exist in folder!')
+        
+        print(f"File {df} read sucessfully!")
+
+    return
+
+  def format_dataframes(self) -> None:
+    '''
+    Formats correctly the dataframes in en & es by joining them and 
+    adding the correct columns
+
+    '''
+    self.read_dataframes()
+
+    #Filter out the contaminated rows
+
+    print('Decontaminating')
+    filtered_es = self.es_df[~self.es_df['id_preproc'].str.startswith('T_ES_')]
+    self.es_df = filtered_es[~filtered_es['id_preproc'].str.startswith('EN_')] 
+
+    filtered_en = self.en_df[~self.en_df['id_preproc'].str.startswith('T_EN_')]
+    self.en_df = filtered_en[~filtered_en['id_preproc'].str.startswith('ES_')]
+    self.en_df = self.en_df[~self.en_df["raw_text"].str.contains("isbn", case=False, na=False)]
+
+    print('Ordering')
+    #Order both dataframes in the same fashion by aligning the spanish texts
+    df_ordered = self.es_df.copy().reset_index()
+
+    # Find the first occurrence where id_preproc starts with "T"
+    idx = df_ordered[df_ordered["id_preproc"].str.startswith("T")].index.min()
+
+    if idx is not None:
+        # Select the portion of the DataFrame from that index onward
+        df_pre = df_ordered.iloc[idx:].copy()
+        df_pos = df_ordered.iloc[:idx].copy()
+        # Prepend it to the original DataFrame
+        df_ordered = pd.concat([df_pre, df_pos], ignore_index=True)
+
+    self.es_df = df_ordered
+
+    #Creating the language column
+    self.en_df.loc[:, 'lang'] = 'EN'
+    self.es_df.loc[:, 'lang'] = 'ES'
+
+    min_length = min(len(self.en_df), len(self.es_df))
+
+    # Truncate both DataFrames
+    self.en_df = self.en_df.iloc[:min_length]
+    self.es_df = self.es_df.iloc[:min_length]
+
+    #delete the old id to create a new one
+    if 'id' in self.en_df.columns:
+        self.en_df = self.en_df.drop(columns=['id'])
+
+    if 'id' in self.es_df.columns:
+        self.es_df = self.es_df.drop(columns=['id'])
+
+    print('Merging')
+    #merge
+    self.final_df = pd.concat([self.en_df, self.es_df], ignore_index=True)
+
+    #create new index
+    self.final_df['doc_id'] = self.final_df.index
+
+    self.save_to_parquet()
+
+    return
+    
+  def save_to_parquet(self) -> None:
+    '''
+    Saves changes ot parquet
+    '''
+    file_name = 'polylingual_df'
+
+    save_path = os.path.join(self.storing_path, file_name)
+
+    self.final_df.to_parquet(path=save_path, compression="gzip")
+    print(f"Saving in PC: {save_path}")
+
+    return
