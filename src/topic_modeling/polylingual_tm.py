@@ -171,7 +171,6 @@ class PolylingualTM(object):
                 corpus_txt_path = self._train_data_folder / f"corpus_{lang}.txt"
                 self._logger.info(
                     f"-- -- Creating Mallet {corpus_txt_path.as_posix()}...")
-                import pdb; pdb.set_trace()
                 with corpus_txt_path.open("w", encoding="utf8") as fout:
                     for i, t in zip(self._docs_lang[lang].doc_id, self._docs_lang[lang].lemmas):
                         fout.write(f"{i} {lang.upper()} {t}\n")

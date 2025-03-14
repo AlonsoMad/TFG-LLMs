@@ -1,7 +1,9 @@
 import pathlib
 import os
+import matplotlib.pyplot as plt
 from src.topic_modeling.polylingual_tm import PolylingualTM
 from src.topic_modeling.preprocessing import DataPreparer
+from src.metrics.coherence import *
 #from src.topic_modeling.lda_tm import LDATM
 
 def main():
@@ -23,9 +25,13 @@ def main():
     #Get the dataframes in the correct form
     prep.format_dataframes()
 
+    n_topics =[6] #np.linspace(2,15,14, dtype = int)
+
+    topic_coherences = np.empty((len(n_topics),1))
+
     print("-- -- Training PolyLingual Topic Model")
     # Train PolyLingual Topic Model
-    for k in [5]:  #[30,5,10,15,20,50]:
+    for idx, k in enumerate(n_topics):  #[30,5,10,15,20,50]:
         # model = LDATM(
         model = PolylingualTM(
             lang1="EN",
@@ -35,6 +41,19 @@ def main():
             num_topics=k
         )
         model.train(os.path.join(prep.storing_path, 'polylingual_df'))
+        topic_coherences[idx] = extract_cohr('ES')
+
+    print(topic_coherences)
+
+    # Plot
+    plt.figure(figsize=(8, 5))
+    plt.plot(n_topics, topic_coherences, marker='o', linestyle='-', color='b', label='Topic Coherence')
+    plt.xlabel('Number of Topics (k)')
+    plt.ylabel('Topic Coherence')
+    plt.title('Topic Coherence vs. Number of Topics')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
     
 if __name__ == "__main__":
     main()

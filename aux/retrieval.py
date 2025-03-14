@@ -17,6 +17,7 @@ def get_doc_top_tpcs(doc_distr, topn=10):
     top = sorted_tpc_indices[:topn].tolist()
     return [(k, doc_distr[k]) for k in top if doc_distr[k] > 0]
 
+#TODO: dynamic thr here
 def get_thresholds(mat_, poly_degree=3, smoothing_window=5):
     
     thrs = []
