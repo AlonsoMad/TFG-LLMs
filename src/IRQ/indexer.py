@@ -2,6 +2,8 @@ import logging
 import pathlib
 import os
 import faiss
+from tqdm import tqdm
+import ast
 import time
 import pandas as pd
 import numpy as np
@@ -9,7 +11,7 @@ from scipy import sparse
 from sentence_transformers import SentenceTransformer, util
 from kneed import KneeLocator
 from scipy.ndimage import uniform_filter1d
-
+import datetime
 
 class NLPoperator:
     '''
@@ -68,14 +70,14 @@ class NLPoperator:
 
         #Handlind the threshold
         
-        thr = thr.lower()
+        thr = str(thr).lower()
         if thr == 'var':
             self.thr = 'var'
         elif float(thr):
             self.thr = float(thr)
         else:
             raise(f'Invalid value for thr: {thr}, it has to be a float or "var"')
-    
+
         return
     
     def read_data(self) -> None: 
@@ -111,7 +113,7 @@ class Indexer(NLPoperator):
         super().__init__(file_path, model_path, model_name, thr, top_k)
 
         default_config = {
-            "match": "TB_ENN",
+            "match": "ENN",
             "embedding_size": 768,
             "min_clusters": 8,
             "top_k_hits": 10,
@@ -169,19 +171,7 @@ class Indexer(NLPoperator):
 
         # Sort results by score
         results = sorted(results, key=lambda x: x["score"], reverse=True)
-        return results[:top_k]
-    
-    def reorg(self) -> None:
-        '''
-        Executed after the indexing operation, reorders the folder
-        system into
-        - INDEX_{LANG}
-        -- Topic_N
-        --- doc_ids_topic_N
-        --- faiss_N
-        '''
-        return
-    
+        return results[:top_k] 
 
         
     def index(self) -> None:
@@ -208,8 +198,9 @@ class Indexer(NLPoperator):
 
         path_source = self.file_path
         path_model = self.model_path
-        path_save = self.saving_path
+        path_save = os.path.join(self.saving_path, f'{self.config['match']}')
         os.makedirs(path_save, exist_ok=True)
+        self.saving_path = path_save
 
         #Indexing loop and case switch
         for LANG in ['EN', 'ES']:
@@ -271,8 +262,8 @@ class Indexer(NLPoperator):
                 for topic in range(thetas.shape[1]):
                     topic_path = os.path.join(self.saving_path, f'index_{self.config['match']}_{topic}')
                     os.makedirs(topic_path, exist_ok=True)
-                    index_path = os.path.join(topic_path, f"faiss_index_topic_{topic}.index")
-                    doc_ids_path = os.path.join(topic_path , f"doc_ids_topic_{topic}.npy")
+                    index_path = os.path.join(topic_path, f"faiss_index_topic_{topic}_{LANG}.index")
+                    doc_ids_path = os.path.join(topic_path , f"doc_ids_topic_{topic}_{LANG}.npy")
 
                     if os.path.exists(index_path) and os.path.exists(doc_ids_path):
                         continue
@@ -324,10 +315,29 @@ class Retriever(NLPoperator):
         search_mode: either Topic based, exact or approximate
     '''
     def __init__(self, file_path, model_path, model_name, thr, top_k,
-                 search_mode: str):
+                 question_path, idx_config: dict = None):
         super().__init__(file_path, model_path, model_name, thr, top_k)
 
-        search_mode = search_mode.lower()
+        self.question_path = question_path
+        self.storage_path = '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data'
+        #Default configuration for the index
+        default_config = {
+            "match": "ENN",
+            "embedding_size": 768,
+            "min_clusters": 8,
+            "top_k_hits": 10,
+            "batch_size": 32,
+            "thr": '0.01',
+            "top_k": 10
+        }
+
+        self.config = default_config if idx_config is None else {**default_config, **idx_config}
+
+        if self.config['match'] not in {'ENN', 'ANN', 'TB_ANN', 'TB_ENN'}:
+            raise(f'Invalid value for match: {self.config['match']}, it has to be "ENN","ANN","TB_ENN","TB_ANN"')
+        
+                
+        search_mode = self.config['match'].lower()
         if search_mode not in {'enn', 'ann', 'tb_enn', 'tb_ann'}:
             raise(f'Invalid value for match: {search_mode}, it has to be "enn", "ann" or "tb_enn", "tb_ann"')
         else:
@@ -336,8 +346,36 @@ class Retriever(NLPoperator):
         self.indexer = Indexer(self.file_path,
                                 self.model_path,
                                 self.model_name,
-                                self.thr,
-                                self.top_k)
+                                str(self.thr),
+                                self.top_k,
+                                self.config)
+        
+        self.thetas = None
+        self.corpus_embeddings = None
+        self.raw = None
+        self.path_mode = os.path.join(self.saving_path, self.search_mode.upper())
+        self.queries = None
+        return
+    
+    #TODO: Read query csv functionality
+    def read_queries(self) -> None:
+        
+        return
+
+    def read_thetas_em(self) -> None:
+        lang = 'EN' #TODO: ask for help with the languagescd ..
+        self._logger.info(f'Reading thetas of language {lang}')
+
+        thetas_path = os.path.join(self.model_path,'mallet_output', f'thetas_{lang}.npz')
+        thetas = sparse.load_npz(thetas_path).toarray()
+        self.thetas = thetas
+
+        self._logger.info(f'Reading embeddings')
+        path_em = os.path.join(self.indexer.saving_path, self.search_mode.upper(), 'corpus_embeddings.npy')
+        self.corpus_embeddings = np.load(path_em)
+
+        self._logger.info(f'Reading raw docs')
+        self.raw = pd.read_parquet(self.file_path)
 
         return
     
@@ -360,7 +398,7 @@ class Retriever(NLPoperator):
         timelapse = time_end - time_start
         return [{"doc_id": doc_ids[idx], "score": dist} for dist, idx in zip(distances[0], indices[0]) if idx != -1], timelapse
     
-    def topic_based_exact_search(self,query, theta_query, corpus_embeddings, raw, do_weighting=True):
+    def topic_based_exact_search(self, query, theta_query, corpus_embeddings, raw, do_weighting=True):
         time_start = time.time()
         query_embedding = self.model.encode([query], normalize_embeddings=True)
 
@@ -426,3 +464,155 @@ class Retriever(NLPoperator):
         timelapse = time_end-time_start
 
         return sorted(unique_results.values(), key=lambda x: x["score"], reverse=True)[:self.top_k], timelapse
+    
+    def check_idx(self) -> bool:
+        '''
+        Checks whether the indexes for a given method
+        have been computed or not, returns a boolean 
+        depending on it.
+        '''
+        res = False
+
+        if self.search_mode == 'TB_ANN':
+            suffix = 'index_TB_ANN_2/faiss_index_topic_2_EN.index'
+        elif self.search_mode == 'TB_ENN':
+            suffix = 'index_TB_ENN_2/faiss_index_topic_2_EN.index'
+        elif self.search_mode == 'ANN':
+            suffix = 'faiss_index_ANN_EN.index'
+        else: 
+            suffix = 'faiss_index_ENN_EN.index'
+
+        if os.path.exists(os.path.join(self.path_mode, suffix)):
+            res = True
+
+        return res
+
+    def retrieval_loop(self, n_tpcs : int,  weight : bool = False):
+        #Get embeddings and thetas
+        self.read_thetas_em()
+
+        #Check if indexing has been done
+        if not self.check_idx():
+            self.indexer.index()
+
+        #Now iterate over the query stack 
+        paths_ = os.listdir(self.question_path)
+
+        for path_queries in paths_:
+            LANG = 'EN'
+
+            df_q = pd.read_excel(os.path.join(self.question_path, path_queries))
+
+            thetas = self.thetas
+            lang_groups = {
+                "EN": "EN",   
+                "ES": "ES",   
+                "T_EN": "ES", # Translated EN -> grouped with ES
+                "T_ES": "EN", # Translated ES -> grouped with EN
+            }
+            self.raw["lang_group"] = self.raw["id_preproc"].str.extract(r"(EN|ES|T_EN|T_ES)")[0].map(lang_groups)
+            self.raw = self.raw[self.raw["lang_group"] == LANG].copy()
+            self.raw['thetas'] = list(thetas)
+            self.raw["top_k"] = self.raw["thetas"].apply(lambda x: self.get_doc_top_tpcs(x, topn=int(thetas.shape[1] / 3)))
+
+            # Calculate threshold dynamically
+            thrs_ = self.indexer.dynamic_thresholds(thetas, poly_degree=3, smoothing_window=5)
+            if "llama" in path_queries:
+                thrs_keep = [thrs_]
+            else:
+                thrs_keep = [None, thrs_]
+
+            for thrs in thrs_keep:
+                
+                self._logger.info(f"Calculating results with thresholds: {thrs}")
+                save_thr = "_dynamic" if thrs is not None else ""
+
+                # initialize columns to store results
+                for key_results in ["results"]:
+                    df_q[key_results] = None
+                for id_row, row in tqdm(df_q.iterrows(), total=df_q.shape[0]):
+                    if n_tpcs != 30:
+                        row[f"theta_{n_tpcs}"] = self.raw[self.raw.id_preproc == row.doc_id].thetas.values[0]
+                        row[f"top_k_{n_tpcs}"] = self.raw[self.raw.id_preproc == row.doc_id].top_k.values[0]
+
+                    queries = ast.literal_eval(row.subqueries)
+                    
+                    if n_tpcs == 30:
+                        theta_query = ast.literal_eval(row.top_k)
+                    else:
+                        theta_query = row[f"top_k_{n_tpcs}"]
+
+                    results_1 = []
+                    
+                    time_1 = []
+
+                    for query in queries:
+                        
+                        if self.search_mode == 'enn':
+                            r1, t1 = self.exact_nearest_neighbors(query, self.corpus_embeddings, self.raw)
+                        elif self.search_mode == 'ann':
+                            faiss_path = os.path.join(self.path_mode, 'faiss_index_ANN_EN.index')
+                            faiss_index = faiss.read_index(str(faiss_path))
+                            r1, t1 = self.approximate_nearest_neighbors(query, faiss_index, self.raw["doc_id"].tolist(), self.top_k)
+                        elif self.search_mode == 'tb_enn':
+                            r1, t1 =  self.topic_based_exact_search(query, theta_query, self.corpus_embeddings, self.raw, self.top_k, thrs, do_weighting=weight)
+                        else:
+                            r1, t1 = self.topic_based_approximate_search(query, theta_query, self.top_k, thrs, do_weighting=True)
+
+                        results_1.append(r1)
+
+                        time_1.append(t1)
+
+                        # print comparison of times
+                        self._logger.info(f"{self.search_mode}: {t1:.2f}s")
+                    
+                    df_q.at[id_row, "results"] = results_1
+
+                if save_thr == '':
+                    save_thr = 0
+                path_save = os.path.join(self.storage_path, 'res')
+                os.makedirs(path_save, exist_ok=True)
+                df_q.to_parquet(os.path.join(path_save, path_queries.replace(".xlsx", f"_results_model_{n_tpcs}_tpc_{save_thr}_thr.parquet")))
+
+                self._logger.info('Post-processing & saving')    
+                # Convert all result lists to individual rows in one step
+                columns_to_explode = ["results"]
+                df_q = df_q.explode(columns_to_explode, ignore_index=True)
+
+                # Efficiently combine results without repeated parsing
+                def combine_results(row):
+                    doc_ids = set()
+                    for col in columns_to_explode:
+                        try:
+                            content = ast.literal_eval(row[col]) if isinstance(row[col], str) else row[col]
+                        except:
+                            content = row[col]
+                        if isinstance(content, list):
+                            doc_ids.update(doc["doc_id"] for doc in content)
+                    return list(doc_ids)
+
+                df_q["all_results"] = df_q[columns_to_explode].apply(combine_results, axis=1)
+
+                # Select only necessary columns
+                #Original: df_q_eval = df_q[['pass_id', 'doc_id', 'passage', 'top_k', 'question', 'queries', 'all_results']].copy()
+                df_q_eval = df_q[['doc_id', 'full_doc', 'passage', 'question', 'subqueries', 'all_results']].copy()
+
+                # Explode only once
+                df_q_eval = df_q_eval.explode("all_results", ignore_index=True)
+
+                # Use `map` instead of `apply` for better performance
+                doc_map = self.raw.set_index("doc_id")["raw_text"].to_dict()
+                df_q_eval["all_results_content"] = df_q_eval["all_results"].map(doc_map)
+
+                # Save the processed dataframe
+                path_aux = os.path.join(self.storage_path, f'res',f'{self.search_mode}')
+                os.makedirs(path_aux, exist_ok=True)
+                path_save = os.path.join(path_aux , path_queries.replace(".xlsx", f"_results_model{n_tpcs}tpc_thr_{save_thr}_combined_to_retrieve_relevant.parquet"))
+                df_q_eval.to_parquet(path_save)
+
+        return
+
+class QueryEngine(NLPoperator):
+    def __init__(self, file_path, model_path, model_name, thr, top_k):
+        super().__init__(file_path, model_path, model_name, thr, top_k)
+        return
