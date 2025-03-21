@@ -357,13 +357,9 @@ class Retriever(NLPoperator):
         self.queries = None
         return
     
-    #TODO: Read query csv functionality
-    def read_queries(self) -> None:
-        
-        return
 
     def read_thetas_em(self) -> None:
-        lang = 'EN' #TODO: ask for help with the languagescd ..
+        lang = 'EN' 
         self._logger.info(f'Reading thetas of language {lang}')
 
         thetas_path = os.path.join(self.model_path,'mallet_output', f'thetas_{lang}.npz')
@@ -388,7 +384,7 @@ class Retriever(NLPoperator):
         top_k_indices = np.argsort(-cosine_similarities)[:self.top_k]
         time_end = time.time()
         timelapse = time_end - time_start
-        return [{"doc_id": raw.iloc[i].doc_id, "score": cosine_similarities[i]} for i in top_k_indices], timelapse
+        return [{"doc_id": raw.iloc[i].id_preproc, "score": cosine_similarities[i]} for i in top_k_indices], timelapse
         
     def approximate_nearest_neighbors(self, query, faiss_index, doc_ids):
         time_start = time.time()
@@ -398,14 +394,17 @@ class Retriever(NLPoperator):
         timelapse = time_end - time_start
         return [{"doc_id": doc_ids[idx], "score": dist} for dist, idx in zip(distances[0], indices[0]) if idx != -1], timelapse
     
-    def topic_based_exact_search(self, query, theta_query, corpus_embeddings, raw, do_weighting=True):
+    def topic_based_exact_search(self, query, theta_query, corpus_embeddings, raw, thr, do_weighting ):
         time_start = time.time()
         query_embedding = self.model.encode([query], normalize_embeddings=True)
 
         results = []
         for topic, weight in theta_query:
-            thr = self.thr[topic] if self.thr is not None else self.thr #TODO: fix threshold assignment
-            if weight > thr:
+            if thr is not None:
+                thr = list(thr)
+            thrs = thr[topic] if thr is not None else 0
+
+            if weight > thrs:
                 # Reset index so it matches corpus_embeddings indexing
                 raw_reset_index = raw.reset_index(drop=True)
                 topic_docs = raw_reset_index[raw_reset_index["top_k"].apply(lambda x: any(t == topic for t, _ in x))]
@@ -436,16 +435,18 @@ class Retriever(NLPoperator):
 
         return sorted(unique_results.values(), key=lambda x: x["score"], reverse=True)[:self.top_k], timelapse
     
-    def topic_based_approximate_search(self, query, theta_query, do_weighting=True):
+    def topic_based_approximate_search(self, query, theta_query,thr,do_weighting):
         time_start = time.time()
         query_embedding = self.model.encode([query], normalize_embeddings=True)[0]
         results = []
         for topic, weight in theta_query:
-            thr = self.thr[topic] if self.thr is not None else self.thr #TODO: ASSIGN CORRECT VAL
-            if weight > thr:
-                index_path = os.path.join(self.saving_path , f"faiss_index_topic_{topic}.index")
-                doc_ids_path = os.path.join(self.saving_path, f"doc_ids_topic_{topic}.npy")
-                if index_path.exists() and doc_ids_path.exists():
+            if thr is not None:
+                thr = list(thr)
+            thrs = thr[topic] if thr is not None else 0
+            if weight > thrs:
+                index_path = os.path.join(self.saving_path, f'TB_ANN/index_TB_ANN_{topic}' , f"faiss_index_topic_{topic}_EN.index")
+                doc_ids_path = os.path.join(self.saving_path, f'TB_ANN/index_TB_ANN_{topic}' , f"doc_ids_topic_{topic}_EN.npy")
+                if os.path.exists(index_path) and os.path.exists(doc_ids_path):
                     index = faiss.read_index(str(index_path))
                     doc_ids = np.load(doc_ids_path, allow_pickle=True)
                     distances, indices = index.search(np.expand_dims(query_embedding, axis=0), self.top_k)
@@ -473,6 +474,8 @@ class Retriever(NLPoperator):
         '''
         res = False
 
+        self.search_mode = self.search_mode.upper()
+
         if self.search_mode == 'TB_ANN':
             suffix = 'index_TB_ANN_2/faiss_index_topic_2_EN.index'
         elif self.search_mode == 'TB_ENN':
@@ -488,12 +491,13 @@ class Retriever(NLPoperator):
         return res
 
     def retrieval_loop(self, n_tpcs : int,  weight : bool = False):
-        #Get embeddings and thetas
-        self.read_thetas_em()
-
-        #Check if indexing has been done
+ 
+         #Check if indexing has been done
         if not self.check_idx():
             self.indexer.index()
+ 
+        #Get embeddings and thetas
+        self.read_thetas_em()
 
         #Now iterate over the query stack 
         paths_ = os.listdir(self.question_path)
@@ -547,17 +551,16 @@ class Retriever(NLPoperator):
                     time_1 = []
 
                     for query in queries:
-                        
-                        if self.search_mode == 'enn':
+                        if self.search_mode == 'ENN':
                             r1, t1 = self.exact_nearest_neighbors(query, self.corpus_embeddings, self.raw)
-                        elif self.search_mode == 'ann':
+                        elif self.search_mode == 'ANN':
                             faiss_path = os.path.join(self.path_mode, 'faiss_index_ANN_EN.index')
                             faiss_index = faiss.read_index(str(faiss_path))
-                            r1, t1 = self.approximate_nearest_neighbors(query, faiss_index, self.raw["doc_id"].tolist(), self.top_k)
-                        elif self.search_mode == 'tb_enn':
-                            r1, t1 =  self.topic_based_exact_search(query, theta_query, self.corpus_embeddings, self.raw, self.top_k, thrs, do_weighting=weight)
-                        else:
-                            r1, t1 = self.topic_based_approximate_search(query, theta_query, self.top_k, thrs, do_weighting=True)
+                            r1, t1 = self.approximate_nearest_neighbors(query, faiss_index, self.raw["id_preproc"].tolist())
+                        elif self.search_mode == 'TB_ENN':
+                            r1, t1 =  self.topic_based_exact_search(query, theta_query, self.corpus_embeddings, self.raw, thrs, do_weighting=weight)
+                        elif self.search_mode == 'TB_ANN':
+                            r1, t1 = self.topic_based_approximate_search(query, theta_query, thrs, do_weighting=weight)
 
                         results_1.append(r1)
 
@@ -578,7 +581,6 @@ class Retriever(NLPoperator):
                 # Convert all result lists to individual rows in one step
                 columns_to_explode = ["results"]
                 df_q = df_q.explode(columns_to_explode, ignore_index=True)
-
                 # Efficiently combine results without repeated parsing
                 def combine_results(row):
                     doc_ids = set()
