@@ -38,24 +38,29 @@ class NLPoperator:
         top_k: int
         Number of topics "K"
     '''
-    def __init__(self,
-                 file_path: str,
-                 model_path: str,
-                 model_name: str,
-                 thr: str,
-                 top_k: int):
+    def __init__(
+        self,
+        file_path: str,
+        model_path: str,
+        model_name: str,
+        thr: str,
+        top_k: int,
+        saving_path : str = '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data',
+    ):
         #TODO Add weighted for the search
-        
         self.file_path = file_path
         self.model_path = model_path
-        self.saving_path = '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data'
+        self.saving_path = saving_path
         self.model_name = model_name
         self.top_k = top_k
         
         self.og_df = None
         self.thetas = None
 
-        #Now to initialize the logger:
+        # Now to initialize the logger:
+        # ----------------------------------------------------------------------
+        # @TODO: Make a function to handle the logger
+        # ----------------------------------------------------------------------
         logging.basicConfig(level='INFO')
         self._logger = logging.getLogger('NLPoperator')
         # Add a console handler to output logs to the console
@@ -64,12 +69,12 @@ class NLPoperator:
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         console_handler.setFormatter(formatter)
         self._logger.addHandler(console_handler)
+        # ----------------------------------------------------------------------
 
-        #Initialize the model
+        # Initialize the model
         self.model = SentenceTransformer(model_name)
 
-        #Handlind the threshold
-        
+        # Handling the threshold
         thr = str(thr).lower()
         if thr == 'var':
             self.thr = 'var'
@@ -89,7 +94,7 @@ class NLPoperator:
             raise Exception('File path not found, check again')
         else:
             self.og_df = pd.read_parquet(self.file_path)
-            self._logger.info("Dataframe read sucessfully!")
+            self._logger.info("Dataframe read successfully!")
         return
     
     def get_doc_top_tpcs(self, doc_distr, topn=10):
@@ -108,10 +113,18 @@ class Indexer(NLPoperator):
         or approximate; embedding size, batch size, threshold (inputed as a string
         as it could take the value "var"), top_k
     '''
-    def __init__(self, file_path, model_path, model_name, thr, top_k,
-                 config: dict = None):
+    def __init__(
+        self, 
+        file_path, 
+        model_path, 
+        model_name, 
+        thr, 
+        top_k,
+        config: dict = None
+    ):
         super().__init__(file_path, model_path, model_name, thr, top_k)
 
+        # @TODO: Move this to a configuration file (yaml / cfg)
         default_config = {
             "match": "ENN",
             "embedding_size": 768,

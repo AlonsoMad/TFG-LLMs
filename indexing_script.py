@@ -4,7 +4,7 @@ def main():
 
     file_path = '/export/usuarios_ml4ds/ammesa/Data/3_joined_data/polylingual_df'
     mallet_path = '/export/usuarios_ml4ds/ammesa/mallet_folder'
-    mod_name = 'sentence-transformers/LaBSE'
+    mod_name = 'sentence-transformers/LaBSE' #'sentence-transformers/quora-distilbert-multilingual' #'sentence-transformers/LaBSE'
     thr = '0.01'
     top_k = 10
 
