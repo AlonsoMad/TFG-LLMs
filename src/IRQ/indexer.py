@@ -10,6 +10,7 @@ import numpy as np
 from scipy import sparse
 from sentence_transformers import SentenceTransformer, util
 from kneed import KneeLocator
+from tabulate import tabulate
 from scipy.ndimage import uniform_filter1d
 import datetime
 
@@ -43,23 +44,19 @@ class NLPoperator:
         file_path: str,
         model_path: str,
         model_name: str,
-        thr: str,
-        top_k: int,
         saving_path : str = '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data',
     ):
-        #TODO Add weighted for the search
         self.file_path = file_path
         self.model_path = model_path
         self.saving_path = saving_path
         self.model_name = model_name
-        self.top_k = top_k
         
         self.og_df = None
         self.thetas = None
 
         # Now to initialize the logger:
         # ----------------------------------------------------------------------
-        # @TODO: Make a function to handle the logger
+        # TODO: Make a function to handle the logger
         # ----------------------------------------------------------------------
         logging.basicConfig(level='INFO')
         self._logger = logging.getLogger('NLPoperator')
@@ -73,15 +70,6 @@ class NLPoperator:
 
         # Initialize the model
         self.model = SentenceTransformer(model_name)
-
-        # Handling the threshold
-        thr = str(thr).lower()
-        if thr == 'var':
-            self.thr = 'var'
-        elif float(thr):
-            self.thr = float(thr)
-        else:
-            raise(f'Invalid value for thr: {thr}, it has to be a float or "var"')
 
         return
     
@@ -118,13 +106,11 @@ class Indexer(NLPoperator):
         file_path, 
         model_path, 
         model_name, 
-        thr, 
-        top_k,
         config: dict = None
     ):
-        super().__init__(file_path, model_path, model_name, thr, top_k)
+        super().__init__(file_path, model_path, model_name)
 
-        # @TODO: Move this to a configuration file (yaml / cfg)
+        # TODO: Move this to a configuration file (yaml / cfg)
         default_config = {
             "match": "ENN",
             "embedding_size": 768,
@@ -147,7 +133,6 @@ class Indexer(NLPoperator):
         Computes the threshold dynamically to obtain significant
         topics in the indexing phase.
         '''
-        #TODO: Fix nonconvergence in variable
         thrs = []
         for k in range(len(mat_.T)):
             allvalues = np.sort(mat_[:, k].flatten())
@@ -287,7 +272,8 @@ class Indexer(NLPoperator):
 
                     for i, top_k in enumerate(raw["top_k"]):
                         for t, weight in top_k:
-                            if t == topic and weight > threshold:  # Relevance threshold for topic assignment
+                            thrs = threshold[topic] if thr is not None else 0
+                            if t == topic and weight > thrs:  # Relevance threshold for topic assignment
                                 topic_embeddings.append(corpus_embeddings[i])
                                 doc_ids.append(raw.iloc[i].doc_id)
 
@@ -309,6 +295,9 @@ class Indexer(NLPoperator):
                         if self.config['match'] == 'TB_ANN':
                             index.train(topic_embeddings)
 
+                        topic_embeddings = np.array(topic_embeddings)
+                        self._logger.info(f"Shape of topic_embeddings: {topic_embeddings.shape}")
+
                         index.add(topic_embeddings)
 
                         # Save the index and document IDs
@@ -327,12 +316,11 @@ class Retriever(NLPoperator):
     Parameters:
         search_mode: either Topic based, exact or approximate
     '''
-    def __init__(self, file_path, model_path, model_name, thr, top_k,
+    def __init__(self, file_path, model_path, model_name,
                  question_path, idx_config: dict = None):
-        super().__init__(file_path, model_path, model_name, thr, top_k)
+        super().__init__(file_path, model_path, model_name)
 
         self.question_path = question_path
-        self.storage_path = '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data'
         #Default configuration for the index
         default_config = {
             "match": "ENN",
@@ -340,11 +328,16 @@ class Retriever(NLPoperator):
             "min_clusters": 8,
             "top_k_hits": 10,
             "batch_size": 32,
-            "thr": '0.01',
-            "top_k": 10
+            "thr": '0.05',
+            "top_k": 10,
+            'storage_path': '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data'
         }
 
         self.config = default_config if idx_config is None else {**default_config, **idx_config}
+
+        self.storage_path = self.config['storage_path']
+
+        self.output_df = None
 
         if self.config['match'] not in {'ENN', 'ANN', 'TB_ANN', 'TB_ENN'}:
             raise(f'Invalid value for match: {self.config['match']}, it has to be "ENN","ANN","TB_ENN","TB_ANN"')
@@ -359,13 +352,13 @@ class Retriever(NLPoperator):
         self.indexer = Indexer(self.file_path,
                                 self.model_path,
                                 self.model_name,
-                                str(self.thr),
-                                self.top_k,
                                 self.config)
         
         self.thetas = None
         self.corpus_embeddings = None
         self.raw = None
+        self.weight = False
+        self.final_thrs = None
         self.path_mode = os.path.join(self.saving_path, self.search_mode.upper())
         self.queries = None
         return
@@ -397,7 +390,7 @@ class Retriever(NLPoperator):
         top_k_indices = np.argsort(-cosine_similarities)[:self.top_k]
         time_end = time.time()
         timelapse = time_end - time_start
-        return [{"doc_id": raw.iloc[i].id_preproc, "score": cosine_similarities[i]} for i in top_k_indices], timelapse
+        return [{"doc_id": raw.iloc[i].doc_id, "score": cosine_similarities[i]} for i in top_k_indices], timelapse
         
     def approximate_nearest_neighbors(self, query, faiss_index, doc_ids):
         time_start = time.time()
@@ -462,7 +455,7 @@ class Retriever(NLPoperator):
                 if os.path.exists(index_path) and os.path.exists(doc_ids_path):
                     index = faiss.read_index(str(index_path))
                     doc_ids = np.load(doc_ids_path, allow_pickle=True)
-                    distances, indices = index.search(np.expand_dims(query_embedding, axis=0), self.top_k)
+                    distances, indices = index.search(np.expand_dims(query_embedding, axis=0), self.config['top_k'])
                     for dist, idx in zip(distances[0], indices[0]):
                         if idx != -1:
                             score = dist * weight if do_weighting else dist
@@ -477,7 +470,7 @@ class Retriever(NLPoperator):
         time_end = time.time()
         timelapse = time_end-time_start
 
-        return sorted(unique_results.values(), key=lambda x: x["score"], reverse=True)[:self.top_k], timelapse
+        return sorted(unique_results.values(), key=lambda x: x["score"], reverse=True)[:self.config['top_k']], timelapse
     
     def check_idx(self) -> bool:
         '''
@@ -505,6 +498,7 @@ class Retriever(NLPoperator):
 
     def retrieval_loop(self, n_tpcs : int,  weight : bool = False):
  
+        self.weight = weight
          #Check if indexing has been done
         if not self.check_idx():
             self.indexer.index()
@@ -569,7 +563,7 @@ class Retriever(NLPoperator):
                         elif self.search_mode == 'ANN':
                             faiss_path = os.path.join(self.path_mode, 'faiss_index_ANN_EN.index')
                             faiss_index = faiss.read_index(str(faiss_path))
-                            r1, t1 = self.approximate_nearest_neighbors(query, faiss_index, self.raw["id_preproc"].tolist())
+                            r1, t1 = self.approximate_nearest_neighbors(query, faiss_index, self.raw["doc_id"].tolist())
                         elif self.search_mode == 'TB_ENN':
                             r1, t1 =  self.topic_based_exact_search(query, theta_query, self.corpus_embeddings, self.raw, thrs, do_weighting=weight)
                         elif self.search_mode == 'TB_ANN':
@@ -610,7 +604,7 @@ class Retriever(NLPoperator):
 
                 # Select only necessary columns
                 #Original: df_q_eval = df_q[['pass_id', 'doc_id', 'passage', 'top_k', 'question', 'queries', 'all_results']].copy()
-                df_q_eval = df_q[['doc_id', 'full_doc', 'passage', 'question', 'subqueries', 'all_results']].copy()
+                df_q_eval = df_q[['doc_id', 'full_doc', 'passage', 'question', 'subqueries', 'all_results', 'relevant_docs']].copy()
 
                 # Explode only once
                 df_q_eval = df_q_eval.explode("all_results", ignore_index=True)
@@ -624,6 +618,133 @@ class Retriever(NLPoperator):
                 os.makedirs(path_aux, exist_ok=True)
                 path_save = os.path.join(path_aux , path_queries.replace(".xlsx", f"_results_model{n_tpcs}tpc_thr_{save_thr}_combined_to_retrieve_relevant.parquet"))
                 df_q_eval.to_parquet(path_save)
+                self.final_thrs = save_thr
+                self.output_df = df_q_eval
+
+        return
+    
+    def precision_at_k(self, row, k):
+        
+        retrieved_docs = set(row[f"all_results"][:k])  
+        relevant_docs = set(row["relevant_docs"])
+
+        if not retrieved_docs:
+            return 0.0
+
+        return len(retrieved_docs & relevant_docs) / len(retrieved_docs)
+    
+    def recall_at_k(self, row, k):
+        retrieved_docs = set(row[f"all_results"][:k])
+        relevant_docs = set(row["relevant_docs"])
+
+        if not relevant_docs:
+            return 0.0
+
+        return len(retrieved_docs & relevant_docs) / len(relevant_docs)
+    
+    def multiple_mean_reciprocal_rank_at_k(self, row, k):
+        retrieved_docs = row[f"all_results"][:k]
+        relevant_docs = set(row["relevant_docs"])
+        
+        ranks = []
+        for i, doc in enumerate(retrieved_docs):
+            if doc in relevant_docs:
+                ranks.append(i + 1)
+        
+        if not ranks:
+            return 0
+
+        numerator = np.mean(ranks)
+
+        n = len(relevant_docs)
+        denominator = (n / 2) + ((k + 1) * (n - len(ranks)))
+
+        return numerator / denominator
+    
+    def dcg_at_k(self, scores, k):
+
+        return sum(rel / np.log2(idx + 2) for idx, rel in enumerate(scores[:k]))
+    
+    def ndcg_at_k(self, row, k):
+        retrieved_docs = row[f"all_results"][:k]
+        relevant_docs = set(row["relevant_docs"])
+        
+        # 1 if the document is relevant, 0 otherwise
+        gains = [1 if doc in relevant_docs else 0 for doc in retrieved_docs]
+        
+        dcg = self.dcg_at_k(gains, k)
+        
+        ideal_gains = sorted(gains, reverse=True)
+        idcg = self.dcg_at_k(ideal_gains, k)
+        
+        return dcg / idcg if idcg > 0 else 0
+    
+
+    def evaluation(self, ks:list = [5,10]) -> None:
+        '''
+        Outputs a table with the following metrics for the retrieval dataframe:
+        Precision, Recall, MMRCK, DCG, NDCG
+        '''
+        df_aux = self.output_df
+
+        og_df = pd.read_parquet('/export/usuarios_ml4ds/ammesa/Data/3_joined_data/polylingual_df')
+
+        df_aux['relevant_docs'] = df_aux['relevant_docs'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+
+        mapping_inv = dict(zip(og_df['id_preproc'], og_df['doc_id']))
+
+        def map_relevant_docs_to_doc_ids(row):
+            return [mapping_inv.get(id_preproc, None) for id_preproc in row]
+        
+        df_aux['relevant_docs'] = df_aux['relevant_docs'].apply(map_relevant_docs_to_doc_ids)
+
+        self.output_df = (
+            df_aux.groupby('question')
+            .agg({
+                'doc_id': lambda x: list(x)[0],
+                'full_doc': lambda x: list(x)[0],
+                'passage': lambda x: list(x)[0],
+                'subqueries': lambda x: list(x)[0],
+                'all_results': lambda x: list(x),
+                'relevant_docs': lambda x: list(x)[0],
+                'all_results_content': lambda x: list(x)
+            })
+            .reset_index()
+        )
+
+        for k in ks:
+            self.output_df[f"mrr_{k}"] = self.output_df.apply(lambda x: self.multiple_mean_reciprocal_rank_at_k(x, k=k), axis=1)
+            self.output_df[f"precision_{k}"] = self.output_df.apply(lambda x: self.precision_at_k(x,k=k), axis=1)
+            self.output_df[f"recall_{k}"] = self.output_df.apply(lambda x: self.recall_at_k(x, k=k), axis=1)
+            self.output_df[f"ndcg_{k}"] = self.output_df.apply(lambda x: self.ndcg_at_k(x, k=k), axis=1)
+
+
+        summary_data = []
+        row = {'retrieval_method': self.search_mode}
+        for k in ks:
+            row[f'avg_mrr@{k}_{self.search_mode}'] = self.output_df[f"mrr_{k}"].mean()
+            row[f'avg_precision@{k}_{self.search_mode}'] = self.output_df[f"precision_{k}"].mean()
+            row[f'avg_recall@{k}_{self.search_mode}'] = self.output_df[f"recall_{k}"].mean()
+            row[f'avg_ndcg@{k}_{self.search_mode}'] = self.output_df[f"ndcg_{k}"].mean()
+        row['thr'] = self.final_thrs
+        row['weighted'] = self.weight
+        summary_data.append(row)
+
+
+        summary_table = pd.DataFrame(summary_data)
+        summary_table = summary_table.round(4)  # Round for nice readability
+
+
+        csv_path = os.path.join(self.config['storage_path'],"metrics_retrieval.csv") 
+
+        # Check if file exists to decide header inclusion
+        write_header = not os.path.exists(csv_path)
+
+        # Append results to CSV (retain history)
+        summary_table.to_csv(csv_path, mode='a', index=False, header=write_header)
+
+        print(tabulate(summary_table.head(10), headers='keys', tablefmt='github', showindex=False))
+
 
         return
 
