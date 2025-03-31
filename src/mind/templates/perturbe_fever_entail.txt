@@ -1,0 +1,26 @@
+Given a QUESTION and two answers (ANSWER1 and ANSWER2) that entail each other, reword ANSWER1 (NEW_ANSWER1) and ANSWER2 (NEW_ANSWER2) to introduce a framing discrepancy while keeping their YES/NO structure.
+
+#### TASK INSTRUCTIONS #### 
+
+- The new answers should NOT contradict each other, but they MUST differ clearly in wording, emphasis, or supporting details.
+- One answer should focus on general or broad information, while the other should highlight a specific detail, example, or alternative framing of the same fact.
+- If applicable, introduce a difference in reasoning, implications, or context, ensuring both remain true within their respective frames.
+
+#### EXAMPLES #### 
+
+QUESTION: Was Danny DeVito nominated for an award?
+ANSWER_1: Yes, Danny DeVito was nominated for an award.
+ANSWER_2: Yes, Danny DeVito was nominated for an Academy Award for Best Picture as one of the producers of Erin Brockovich
+NEW_ANSWER1: Yes, Danny DeVito was nominated for an acting award.
+NEW_ANSWER2: Yes, Danny DeVito received a nomination for an award, specifically for his role as a producer on the film Erin Brockovich, which was recognized in the Best Picture category at the Academy Awards.
+
+QUESTION: Were music awards won by Glenn Frey?
+ANSWER_1: Yes, Glenn Frey received several prestigious music awards during his career.
+ANSWER_2: Yes, as part of the Eagles, Glenn Frey earned six Grammy Awards and five American Music Awards, highlighting his significant contributions to the music industry.
+NEW_ANSWER1: Yes, Glenn Frey was recognized multiple times for his impact on music.
+NEW_ANSWER2: Yes, Glenn Frey’s award wins came primarily through his role in the Eagles, with the band securing six Grammy Awards and five American Music Awards.
+
+#### YOUR TASK ####
+QUESTION: {question}
+ANSWER1: {answer1}
+ANSWER2: {answer2}

@@ -1,0 +1,22 @@
+Determine whether the passage contains information that directly answers the question. If it does, return YES; otherwise, return NO. Respond with only YES or NO in uppercase.
+
+#### EXAMPLES ####
+
+PASSAGE: Puede empezar a ofrecerle a su hijo pequeñas cantidades de agua alrededor de los 6 meses. Si vive en un lugar con agua fluorada, esto le ayudará a prevenir la aparición de caries. Pregúntele al proveedor de atención médica de su hijo cuánta agua debe darle.
+
+QUESTION: Are feeding tubes typically employed for infants, and do they have any potential benefits for older children or teenagers in specific cases?
+
+RELEVANT: NO
+
+
+PASSAGE: La alimentación por sonda también puede ser una buena idea para aquellos niños que pueden comer de forma segura, pero no logran comer suficiente por la boca (incluso con suplementos) como para mantener un peso saludable. En estos casos, la alimentación por sonda puede complementar la rutina habitual de las comidas. Estas alimentaciones también son útiles cuando un niño está creciendo rápidamente y necesita más nutrientes mientras desarrolla habilidades para comer o tiene una enfermedad grave. Después, el tubo puede usarse con menos frecuencia o quitarse.
+
+QUESTION: Are feeding tubes typically employed for infants, and do they have any potential benefits for older children or teenagers in specific cases?
+
+RELEVANT: YES
+
+#### YOUR TASK ####
+
+PASSAGE: {passage}
+QUESTION: {question}
+RELEVANT:

@@ -1,0 +1,31 @@
+You will be given a PASSAGE and an excerpt from the FULL_DOCUMENT where it appears. Imagine a user is seeking information on a specific topic and submits a YES/NO question. Your task is to generate such questions that would lead a retrieval system to find the passage and use it to generate an answer.
+
+#### TASK BREAKDOWN ####
+
+1. Determine whether the provided PASSAGE within the given context provides factual information that can be transformed into YES/NO questions. Avoid using subjective opinions, personal experiences, author affiliations, or vague references.
+2. If the PASSAGE contains factual information, generate simple and direct YES/NO questions from the PASSAGE only. Do not use the FULL_DOCUMENT to generate questions. Avoid ambiguous language, such as pronouns ("it," "they") or vague references ("the..."), and always define acronyms and abbreviations within each question (e.g., write "Multisystem Inflammatory Syndrome in Children (MIS-C)" instead of just "MIS-C").
+3. Make sure the questions are phrased in a way that a general user might naturally ask, avoiding overly technical or detailed wording unless necessary.
+4. If the PASSAGE does not contain suitable factual information, return N/A followed by a reasoning statement explaining why it is not suitable for generating YES/NO questions.
+
+#### EXAMPLES ####
+
+PASSAGE: Risk factors: Children diagnosed with MIS-C are often between the ages of 5 and 11 years old. But cases are reported among children ages 1 to 15. A few cases have also happened in older kids and in babies.
+
+FULL_DOCUMENT: Overview Multisystem inflammatory syndrome in children (MIS-C) is a group of symptoms linked to swollen, called inflamed, organs or tissues. People with MIS-C need care in the hospital [...]
+
+QUESTIONS: Can children with Multisystem Inflammatory Syndrome in Children (MIS-C) be as young as 1 year old?
+Are most cases of Multisystem Inflammatory Syndrome in Children (MIS-C) found in children between 5 and 11 years old?
+Have there been cases of Multisystem Inflammatory Syndrome in Children (MIS-C) in babies?
+
+
+PASSAGE: How has COVID-19 impacted you personally and professionally this year: I'm a single mom and when my kids were home schooling it made it tremendously hard for them to be home with me here at work. That was a big challenge. I think it's difficult for all of us health care providers, who are taking care of the sickest patients and working with stressed out families. It adds an additional challenge for us.
+
+FULL_DOCUMENT: Stacey Stone, M.D., began walking the halls of All Children’s Hospital well before she wore a doctor’s white coat. Touring the neonatal intensive care unit (NICU) as a teenager, she became smitten with the idea [...]
+
+QUESTIONS: N/A, the passage provides subjective information about the personal and professional impact of COVID-19 on the author, which is not suitable for generating YES/NO questions.
+
+#### YOUR TASK ####
+
+PASSAGE: {passage}
+FULL_DOCUMENT: {full_document}
+QUESTIONS:

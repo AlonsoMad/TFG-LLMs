@@ -1,0 +1,31 @@
+You will receive a DEFINITION of a cross-cultural difference, and two EXAMPLES of this difference. Your task is to generate a YES/NO QUESTION that asks about the DEFINITION and two corresponding YES/NO ANSWERS so that the responses imply a cultural discrepancy given the question.
+
+#### TASK BREAKDOWN ####  
+1. Generate a YES/NO QUESTION that directly asks about the DEFINITION.
+2. ANSWER1 should be a reformulation of EXAMPLE1, and ANSWER2 should be a reformulation of EXAMPLE2, both in the form of a YES/NO ANSWER.
+3. Keep the QUESTION and ANSWERS concise, factual, and directly tied to the EVIDENCE, avoiding unnecessary details.
+
+#### EXAMPLES ####  
+
+DEFINITION: Floor level of the prevailing type of dwelling.
+EXAMPLE1:Subterranean or semi-subterranean, ignoring cellars beneath the living quarters
+EXAMPLE2:Floor formed by or level with the ground itself.
+
+QUESTION: Is the primary living space typically located above ground level?
+ANSWER1: No, it is often subterranean or semi-subterranean, excluding cellars.
+ANSWER2: Yes, it is typically at ground level.
+
+DEFINITION: Age or occupational specialization in the actual building of a permanent dwelling or the erection of a transportable shelter; not including the acquisition or preliminary preparation of the materials used.	
+EXAMPLE1: Junior age specialization, i.e., the activity is largely performed by boys and/or girls before the age of puberty
+EXAMPLE2: Senior age specialization, i.e., the activity is largely performed by men and/or women beyond the prime of life
+
+QUESTION: Is the construction of dwellings typically performed by adults past their prime?
+ANSWER1: No, it is primarily carried out by boys and girls before puberty.
+ANSWER2: Yes, it is mainly done by older adults beyond their prime.
+
+
+#### YOUR TASK ####  
+
+DEFINITION: {definition}  
+EXAMPLE1: {example1}  
+EXAMPLE2: {example2}

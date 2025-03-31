@@ -1,0 +1,46 @@
+You will be given a QUESTION, a PASSAGE, and an excerpt from the FULL_DOCUMENT where the passage appears. If the PASSAGE contains information that directly answers the QUESTION, your task is to provide a YES/NO answer to the QUESTION, followed by a brief explanation based only on the PASSAGE.
+
+#### TASK INSTRUCTIONS ####
+
+- If the passage does not contain enough information to answer the question or the information only contain personal experiences, respond with "I cannot answer the question given the context.".
+- Answer as if you were a chatbot responding to a user.
+- Do not mention "the passage," "the text," or refer to where the information comes from.
+- Keep the response natural, direct, and informative.
+- Do not use outside knowledge or the FULL_DOCUMENT to answer the question.
+
+#### EXAMPLES ####
+
+QUESTION: Can children with Multisystem Inflammatory Syndrome in Children (MIS-C) be as young as 1 year old?  
+
+PASSAGE: Risk factors: Children diagnosed with MIS-C are often between the ages of 5 and 11 years old. But cases are reported among children ages 1 to 15. A few cases have also happened in older kids and in babies.  
+
+FULL_DOCUMENT: Overview Multisystem inflammatory syndrome in children (MIS-C) is a group of symptoms linked to swollen, called inflamed, organs or tissues. People with MIS-C need care in the hospital [...]  
+
+ANSWER: YES, children as young as 1 year old can be affected by MIS-C. Although it is most common in children aged 5 to 11, cases have been reported in younger children, including 1-year-olds and even infants.
+
+
+QUESTION: Does a baby's Apgar score help identify infants who may have trouble breathing after birth?
+
+PASSAGE: En el año 1963, se acuñó el acrónimo APGAR en inglés para el sistema de puntuación como ayuda nemónica de aprendizaje: Apariencia (color de la piel), Pulso (frecuencia cardíaca), “Grimace” o mueca (irritabilidad del reflejo), Actividad (tono muscular) y Respiración.
+
+FULL_DOCUMENT: Misión Virginia Apgar Ante todo, Virginia Apgar era una incontenible y carismática defensora de los bebés, cuyo ingenio y vivaz personalidad cautivaba a todos los que conocía en su constante pugna por mejorar la salud materno-infantil. La prueba Apgar Virginia Apgar nació el 7 de junio de 1909 en Westfield, Nueva Jersey. Asistió a Mount Holyoke Collage en Massachusetts. En los años 30, estudió medicina en la Facultad de Médicos y Cirujanos de Columbia Universito en Nueva York con la intención de convertirse en cirujana. [...]
+
+ANSWER: I cannot answer the question given the context.
+
+
+QUESTION: Does the rectangular fold method involve folding the diaper into a rectangle?	
+
+PASSAGE: Si usa pañales de tela tradicionales, existen varias maneras de colocarlos. Una de las más comunes es el pliegue triangular:\n- Doble el cuadrado por la mitad para formar un triángulo. (En el caso de los recién nacidos o los bebés pequeños, es posible que deba doblar la parte más larga del triángulo unas pocas pulgadas para que le quede mejor a su bebé).\n- Coloque al bebé sobre el pañal levantándole suavemente las piernas y los pies, y deslizando el pañal debajo del niño. La parte más larga del triángulo debe quedar debajo de la espalda del bebé, con la esquina opuesta apuntando hacia los pies.\n- Lleve la parte delantera del pañal hacia arriba, entre las piernas del bebé y hacia el ombligo.\n- Con uno de los laterales, rodee el cuerpo del niño y cubra la parte central.\n- Haga lo mismo con el otro lateral y cubra las dos partes anteriores. Sujete todas las partes con un alfiler con gancho.
+
+FULL_DOCUMENT: Los pañales de tela son una opción ecológica y económica para los padres que buscan alternativas a los pañales desechables. Aunque los pañales de tela requieren más trabajo y mantenimiento, muchos padres consideran que los beneficios ambientales y económicos superan las molestias adicionales. Además, los pañales de tela pueden ser más suaves y menos irritantes para la piel sensible de los bebés. [...]
+
+ANSWER: I cannot answer the question given the context.
+
+#### YOUR TASK ####
+
+QUESTION: {question}  
+PASSAGE: {passage}  
+FULL_DOCUMENT: {full_document}  
+ANSWER:
+
+Before answering, consider whether the passage contains information that directly answers the question. If it does not, respond with: "I cannot answer given the context."

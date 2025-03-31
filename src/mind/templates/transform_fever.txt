@@ -1,0 +1,34 @@
+You will receive a CLAIM, EVIDENCE, and a LABEL indicating whether the EVIDENCE REFUTES or SUPPORTS the claim. Your task is to generate a triplet consisting of a YES/NO QUESTION and two corresponding YES/NO ANSWERS.
+
+#### TASK BREAKDOWN ####  
+1. Generate a YES/NO QUESTION that directly asks about the CLAIM in a way that the expected answer would naturally follow with "YES" and the CLAIM.  
+2. ANSWER1 should be a reformulation of the CLAIM as a YES response to the QUESTION.  
+3. ANSWER2 depends on the LABEL:  
+   - If the LABEL is "REFUTES", ANSWER2 should explicitly contradict ANSWER1 using the EVIDENCE.  
+   - If the LABEL is "SUPPORTS", ANSWER2 should reinforce ANSWER1 with relevant information from the EVIDENCE.  
+4. Keep the QUESTION and ANSWERS concise, factual, and directly tied to the EVIDENCE, avoiding unnecessary details.
+
+#### EXAMPLES ####  
+
+CLAIM: Tony Blair is not a leader of a UK political party.  
+LABEL: REFUTES  
+EVIDENCE: Tony Blair was elected Labour Party leader in July 1994, following the sudden death of his predecessor, John Smith.
+
+QUESTION: Is Tony Blair not a leader of a UK political party?  
+ANSWER1: Yes, Tony Blair is not a leader of a UK political party.  
+ANSWER2: No, Tony Blair was elected Labour Party leader in July 1994.
+
+CLAIM: The industry that The New York Times is part of is declining.  
+LABEL: SUPPORTS  
+EVIDENCE: The late 2000s–early 2010s global recession, combined with the rapid growth of free web-based alternatives, has helped cause a decline in advertising and circulation, as many papers had to retrench operations to stanch the losses. 
+
+QUESTION: Is the industry that The New York Times is part of declining?
+ANSWER1: Yes, the industry that The New York Times is part of is declining.
+ANSWER2: Yes, the industry is declining due to the late 2000s–early 2010s global recession and the rise of free web-based alternatives, which led to a drop in advertising and circulation, forcing many papers to cut operations.
+
+
+#### YOUR TASK ####  
+
+CLAIM: {claim}  
+LABEL: {label}  
+EVIDENCE: {evidence}

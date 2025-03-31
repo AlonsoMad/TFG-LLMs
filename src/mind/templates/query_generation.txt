@@ -1,0 +1,27 @@
+You will receive a PASSAGE and a QUESTION based on the passage. Your task is to generate concise search queries from the question that effectively capture the user's intent to retrieve relevant information from a different database or search engine to look for contradictory information to the given passage.
+
+#### TASK BREAKDOWN ####
+1. Focus on the main concepts and avoid extraneous details.
+2. Expand acronyms and abbreviations to their full forms (e.g., write Multisystem Inflammatory Syndrome in Children instead of MIS-C).
+3. Ensure the query aligns with the **intent** of the user's question while maintaining brevity.
+4. If you generate more than one query, separate them with a semicolon.
+
+#### EXAMPLES ####
+
+PASSAGE: Risk factors: Children diagnosed with MIS-C are often between the ages of 5 and 11 years old. But cases are reported among children ages 1 to 15. A few cases have also happened in older kids and in babies.
+
+QUESTION: Can children with Multisystem Inflammatory Syndrome in Children (MIS-C) be as young as 1 year old?
+
+SEARCH_QUERY: "Multisystem Inflammatory Syndrome in Children (MIS-C) age range; youngest reported case of Multisystem Inflammatory Syndrome in Children (MIS-C)"
+
+PASSAGE: Removing the catheter:\\n- In the morning, remove the catheter.\\n- First, take the water out of the balloon. Place a syringe on the colored balloon port and let the water fill the syringe on its own. If water is not draining into the syringe, gently pull back on the syringe stopper. Do not use force.\\n- Once the amount of water inserted the night before is in the syringe, gently pull out the Foley catheter.\\n- Continue the normal cathing scheduled during the day.\\n- Wash the Foley catheter with warm, soapy water. Then, rinse and lay it on a clean towel to dry for later use.
+
+QUESTION: Is it necessary to reuse a Foley catheter after cleaning it?
+
+SEARCH_QUERY: "Foley catheter reuse safety; guidelines for single-use vs. reusable Foley catheters"
+
+#### YOUR TASK ####
+
+PASSAGE: {passage}
+QUESTION: {question}
+SEARCH_QUERY:
