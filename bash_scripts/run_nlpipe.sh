@@ -19,8 +19,8 @@ fi
 
 python3 -m src.NLPipe.nlpipe \
     --source_path /export/usuarios_ml4ds/ammesa/Data/1.5_trans_data \
-    --source es_2025-03-03_segm_trans \
-    --destination_path /export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data/es \
+    --source dataset_PubMedQA\
+    --destination_path /export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data/med_en \
     --stw_path /export/usuarios_ml4ds/ammesa/TFG-LLMs/src/topic_modeling/stops \
-    --lang es \
+    --lang en \
     --do_embeddings 

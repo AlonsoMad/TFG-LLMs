@@ -4,11 +4,11 @@ def main():
 
     file_path = '/export/usuarios_ml4ds/ammesa/Data/3_joined_data/polylingual_df'
     mallet_path = '/export/usuarios_ml4ds/ammesa/mallet_folder'
-    mod_name = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'#sentence-transformers/distiluse-base-multilingual-cased-v2'#sentence-transformers/quora-distilbert-multilingual' #'sentence-transformers/LaBSE'
+    mod_name = 'sentence-transformers/LaBSE'#'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2' 
 
     config = {
-            "match": "TB_ANN",
-            "embedding_size": 384,
+            "match": "ENN",
+            "embedding_size": 768,
             "min_clusters": 8,
             "top_k_hits": 10,
             "batch_size": 32,
@@ -21,7 +21,7 @@ def main():
 
     r = Retriever(file_path, mallet_path, mod_name, '/export/usuarios_ml4ds/ammesa/Data/question_bank', config)
 
-    r.retrieval_loop(n_tpcs=6, weight=True)
+    r.retrieval_loop(n_tpcs=6, weight=False)
     #i.index()
     r.evaluation()
 

@@ -387,7 +387,7 @@ class Retriever(NLPoperator):
         time_start = time.time()
         query_embedding = self.model.encode([query], normalize_embeddings=True)
         cosine_similarities = np.dot(corpus_embeddings, query_embedding.T).squeeze()
-        top_k_indices = np.argsort(-cosine_similarities)[:self.top_k]
+        top_k_indices = np.argsort(-cosine_similarities)[:self.config['top_k']]
         time_end = time.time()
         timelapse = time_end - time_start
         return [{"doc_id": raw.iloc[i].doc_id, "score": cosine_similarities[i]} for i in top_k_indices], timelapse
@@ -395,7 +395,7 @@ class Retriever(NLPoperator):
     def approximate_nearest_neighbors(self, query, faiss_index, doc_ids):
         time_start = time.time()
         query_embedding = self.model.encode([query], normalize_embeddings=True)[0]
-        distances, indices = faiss_index.search(np.expand_dims(query_embedding, axis=0), self.top_k)
+        distances, indices = faiss_index.search(np.expand_dims(query_embedding, axis=0), self.config['top_k'])
         time_end = time.time()
         timelapse = time_end - time_start
         return [{"doc_id": doc_ids[idx], "score": dist} for dist, idx in zip(distances[0], indices[0]) if idx != -1], timelapse
@@ -423,7 +423,7 @@ class Retriever(NLPoperator):
 
                 # Compute cosine similarity
                 cosine_similarities = np.dot(topic_embeddings, query_embedding.T).squeeze()
-                top_k_indices = np.argsort(-cosine_similarities)[:self.top_k]
+                top_k_indices = np.argsort(-cosine_similarities)[:self.config['top_k']]
 
                 for i in top_k_indices:
                     score = cosine_similarities[i] * weight if do_weighting else cosine_similarities[i]
@@ -439,7 +439,7 @@ class Retriever(NLPoperator):
             if doc_id not in unique_results or result["score"] > unique_results[doc_id]["score"]:
                 unique_results[doc_id] = result
 
-        return sorted(unique_results.values(), key=lambda x: x["score"], reverse=True)[:self.top_k], timelapse
+        return sorted(unique_results.values(), key=lambda x: x["score"], reverse=True)[:self.config['top_k']], timelapse
     
     def topic_based_approximate_search(self, query, theta_query,thr,do_weighting):
         time_start = time.time()
@@ -645,7 +645,15 @@ class Retriever(NLPoperator):
     def multiple_mean_reciprocal_rank_at_k(self, row, k):
         retrieved_docs = row[f"all_results"][:k]
         relevant_docs = set(row["relevant_docs"])
+
+        ranks = [i + 1 for i, doc in enumerate(retrieved_docs) if doc in relevant_docs]
+
+        if not ranks:
+            return 0.0
+
+        result = np.mean([1 / rank for rank in ranks])
         
+        '''
         ranks = []
         for i, doc in enumerate(retrieved_docs):
             if doc in relevant_docs:
@@ -658,8 +666,9 @@ class Retriever(NLPoperator):
 
         n = len(relevant_docs)
         denominator = (n / 2) + ((k + 1) * (n - len(ranks)))
-
-        return numerator / denominator
+        result = numerator / denominator
+        '''
+        return result
     
     def dcg_at_k(self, scores, k):
 
@@ -712,13 +721,15 @@ class Retriever(NLPoperator):
             .reset_index()
         )
 
+        import pdb; pdb.set_trace()
+
         for k in ks:
             self.output_df[f"mrr_{k}"] = self.output_df.apply(lambda x: self.multiple_mean_reciprocal_rank_at_k(x, k=k), axis=1)
             self.output_df[f"precision_{k}"] = self.output_df.apply(lambda x: self.precision_at_k(x,k=k), axis=1)
             self.output_df[f"recall_{k}"] = self.output_df.apply(lambda x: self.recall_at_k(x, k=k), axis=1)
             self.output_df[f"ndcg_{k}"] = self.output_df.apply(lambda x: self.ndcg_at_k(x, k=k), axis=1)
 
-
+        pdb.set_trace()
         summary_data = []
         row = {'retrieval_method': self.search_mode}
         for k in ks:
@@ -743,6 +754,7 @@ class Retriever(NLPoperator):
         # Append results to CSV (retain history)
         summary_table.to_csv(csv_path, mode='a', index=False, header=write_header)
 
+        #TODO: Generar tabla para LaTEX
         print(tabulate(summary_table.head(10), headers='keys', tablefmt='github', showindex=False))
 
 
