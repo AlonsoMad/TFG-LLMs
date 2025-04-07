@@ -83,7 +83,23 @@ def load_yaml_config_file(config_file: str, section: str, logger:logging.Logger)
     log_or_print(f"Loaded config file {config_file} and section {section}.", logger=logger)
 
     return section_dict
+def file_lines(fname):
+    """
+    Count number of lines in file
 
+    Parameters
+    ----------
+    fname: Path
+        the file whose number of lines is calculated
+
+    Returns
+    -------
+    number of lines
+    """
+    with fname.open('r', encoding='utf8') as f:
+        for i, l in enumerate(f):
+            pass
+    return i + 1
 def init_logger(
     config_file: str,
     name: str = None

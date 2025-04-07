@@ -13,6 +13,7 @@ from kneed import KneeLocator
 from tabulate import tabulate
 from scipy.ndimage import uniform_filter1d
 import datetime
+import pdb
 
 class NLPoperator:
     '''
@@ -113,7 +114,7 @@ class Indexer(NLPoperator):
         # TODO: Move this to a configuration file (yaml / cfg)
         default_config = {
             "match": "ENN",
-            "embedding_size": 768,
+            "embedding_size": 384,
             "min_clusters": 8,
             "top_k_hits": 10,
             "batch_size": 32,
@@ -205,11 +206,12 @@ class Indexer(NLPoperator):
             self._logger.info(f'Loading data for the {LANG} dataset')
             #Obtain data and thetas
             raw = pd.read_parquet(path_source)
-            thetas_path = os.path.join(path_model, 'mallet_output', f'thetas_{LANG}.npz')
+            #thetas_path = os.path.join(path_model, 'mallet_output', f'thetas_{LANG}.npz')
+            thetas_path = os.path.join(path_model, 'mallet_output', 'EN','thetas.npz')
             thetas = sparse.load_npz(thetas_path).toarray()
 
-            raw["lang_group"] = raw["id_preproc"].str.extract(r"(EN|ES|T_EN|T_ES)")[0].map(lang_groups)
-            raw = raw[raw["lang_group"] == LANG].copy()
+            #raw["lang_group"] = raw["id_preproc"].str.extract(r"(EN|ES|T_EN|T_ES)")[0].map(lang_groups)
+            #raw = raw[raw["lang_group"] == LANG].copy()
             raw['thetas'] = list(thetas)
             raw["top_k"] = raw["thetas"].apply(lambda x: self.get_doc_top_tpcs(x, topn=int(thetas.shape[1] / 3)))
 
@@ -368,12 +370,12 @@ class Retriever(NLPoperator):
         lang = 'EN' 
         self._logger.info(f'Reading thetas of language {lang}')
 
-        thetas_path = os.path.join(self.model_path,'mallet_output', f'thetas_{lang}.npz')
+        thetas_path = os.path.join(self.model_path,'mallet_output', 'EN',f'thetas.npz')
         thetas = sparse.load_npz(thetas_path).toarray()
         self.thetas = thetas
 
         self._logger.info(f'Reading embeddings')
-        path_em = os.path.join(self.indexer.saving_path, self.search_mode.upper(), 'corpus_embeddings.npy')
+        path_em = os.path.join(self.indexer.saving_path,f'{self.config['match']}' ,'corpus_embeddings.npy')
         self.corpus_embeddings = np.load(path_em)
 
         self._logger.info(f'Reading raw docs')
@@ -513,7 +515,9 @@ class Retriever(NLPoperator):
             LANG = 'EN'
 
             df_q = pd.read_excel(os.path.join(self.question_path, path_queries))
-
+            #TODO: Solo para el entreno
+            if "id" in df_q.columns:
+                df_q = df_q.rename(columns={"id": "doc_id"})
             thetas = self.thetas
             lang_groups = {
                 "EN": "EN",   
@@ -521,8 +525,10 @@ class Retriever(NLPoperator):
                 "T_EN": "ES", # Translated EN -> grouped with ES
                 "T_ES": "EN", # Translated ES -> grouped with EN
             }
-            self.raw["lang_group"] = self.raw["id_preproc"].str.extract(r"(EN|ES|T_EN|T_ES)")[0].map(lang_groups)
-            self.raw = self.raw[self.raw["lang_group"] == LANG].copy()
+            #Uncomment after training
+            #self.raw["lang_group"] = self.raw["id_preproc"].str.extract(r"(EN|ES|T_EN|T_ES)")[0].map(lang_groups)
+            #self.raw = self.raw[self.raw["lang_group"] == LANG].copy()
+            self.raw['doc_id'] = self.raw['id_preproc']
             self.raw['thetas'] = list(thetas)
             self.raw["top_k"] = self.raw["thetas"].apply(lambda x: self.get_doc_top_tpcs(x, topn=int(thetas.shape[1] / 3)))
 
@@ -572,7 +578,6 @@ class Retriever(NLPoperator):
                         results_1.append(r1)
 
                         time_1.append(t1)
-
                         # print comparison of times
                         self._logger.info(f"{self.search_mode}: {t1:.2f}s")
                     
@@ -606,12 +611,20 @@ class Retriever(NLPoperator):
                 #Original: df_q_eval = df_q[['pass_id', 'doc_id', 'passage', 'top_k', 'question', 'queries', 'all_results']].copy()
                 df_q_eval = df_q[['doc_id', 'full_doc', 'passage', 'question', 'subqueries', 'all_results', 'relevant_docs']].copy()
 
-                # Explode only once
+                
                 df_q_eval = df_q_eval.explode("all_results", ignore_index=True)
 
-                # Use `map` instead of `apply` for better performance
+                
                 doc_map = self.raw.set_index("doc_id")["raw_text"].to_dict()
                 df_q_eval["all_results_content"] = df_q_eval["all_results"].map(doc_map)
+                
+
+                #Only necessary for TB_ANN and ANN of the pubmed dataset
+                if self.config['match'] == 'TB_ANN':
+                    id_mapping = dict(zip(df_q['Unnamed: 0'], df_q['doc_id']))
+                    
+                    # Apply transformation
+                    df_q_eval['all_results'] = df_q_eval['all_results'].apply(lambda x: id_mapping.get(x, x))
 
                 # Save the processed dataframe
                 path_aux = os.path.join(self.storage_path, f'res',f'{self.search_mode}')
@@ -620,6 +633,8 @@ class Retriever(NLPoperator):
                 df_q_eval.to_parquet(path_save)
                 self.final_thrs = save_thr
                 self.output_df = df_q_eval
+
+                self.evaluation()
 
         return
     
@@ -642,6 +657,19 @@ class Retriever(NLPoperator):
 
         return len(retrieved_docs & relevant_docs) / len(relevant_docs)
     
+    def id_in_list(self, row, k):
+        return 1 if row["relevant_docs"][0] in row["all_results"][:k] else 0
+    
+    def calibrated_hit_at_k(self, row, k):
+        retrieved_docs = row[f"all_results"][:k] 
+        relevant_doc = row["relevant_docs"][0]
+        if relevant_doc in retrieved_docs:
+            rank = retrieved_docs.index(relevant_doc) + 1  
+            return 1 / rank  
+        
+        return 0  
+
+
     def multiple_mean_reciprocal_rank_at_k(self, row, k):
         retrieved_docs = row[f"all_results"][:k]
         relevant_docs = set(row["relevant_docs"])
@@ -688,15 +716,20 @@ class Retriever(NLPoperator):
         
         return dcg / idcg if idcg > 0 else 0
     
-
-    def evaluation(self, ks:list = [5,10]) -> None:
+    #TODO: Cambia en el futuro con 3,5,10
+    def evaluation(self, ks:list = [3,5,10]) -> None:
         '''
         Outputs a table with the following metrics for the retrieval dataframe:
         Precision, Recall, MMRCK, DCG, NDCG
         '''
         df_aux = self.output_df
+  
 
-        og_df = pd.read_parquet('/export/usuarios_ml4ds/ammesa/Data/3_joined_data/polylingual_df')
+
+        og_df = pd.read_parquet(self.file_path)
+        '''
+        
+        import pdb; pdb.set_trace()
 
         df_aux['relevant_docs'] = df_aux['relevant_docs'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
 
@@ -706,6 +739,8 @@ class Retriever(NLPoperator):
             return [mapping_inv.get(id_preproc, None) for id_preproc in row]
         
         df_aux['relevant_docs'] = df_aux['relevant_docs'].apply(map_relevant_docs_to_doc_ids)
+        '''
+        #import pdb;pdb.set_trace()
 
         self.output_df = (
             df_aux.groupby('question')
@@ -715,43 +750,45 @@ class Retriever(NLPoperator):
                 'passage': lambda x: list(x)[0],
                 'subqueries': lambda x: list(x)[0],
                 'all_results': lambda x: list(x),
-                'relevant_docs': lambda x: list(x)[0],
+                'relevant_docs': lambda x: [list(x)[0]],
                 'all_results_content': lambda x: list(x)
             })
             .reset_index()
         )
 
-        import pdb; pdb.set_trace()
 
         for k in ks:
             self.output_df[f"mrr_{k}"] = self.output_df.apply(lambda x: self.multiple_mean_reciprocal_rank_at_k(x, k=k), axis=1)
             self.output_df[f"precision_{k}"] = self.output_df.apply(lambda x: self.precision_at_k(x,k=k), axis=1)
             self.output_df[f"recall_{k}"] = self.output_df.apply(lambda x: self.recall_at_k(x, k=k), axis=1)
             self.output_df[f"ndcg_{k}"] = self.output_df.apply(lambda x: self.ndcg_at_k(x, k=k), axis=1)
+            self.output_df[f"hit_{k}"] = self.output_df.apply(lambda x: self.id_in_list(x, k=k), axis=1)
+            self.output_df[f"rank_hit_{k}"] = self.output_df.apply(lambda x: self.calibrated_hit_at_k(x, k=k), axis=1)
 
-        pdb.set_trace()
+
         summary_data = []
         row = {'retrieval_method': self.search_mode}
         for k in ks:
-            row[f'avg_mrr@{k}_{self.search_mode}'] = self.output_df[f"mrr_{k}"].mean()
+            #row[f'avg_mrr@{k}_{self.search_mode}'] = self.output_df[f"mrr_{k}"].mean()
             row[f'avg_precision@{k}_{self.search_mode}'] = self.output_df[f"precision_{k}"].mean()
             row[f'avg_recall@{k}_{self.search_mode}'] = self.output_df[f"recall_{k}"].mean()
             row[f'avg_ndcg@{k}_{self.search_mode}'] = self.output_df[f"ndcg_{k}"].mean()
+            row[f'avg_hit@{k}_{self.search_mode}'] = self.output_df[f"hit_{k}"].mean()
+            row[f'avg_rank_hit@{k}_{self.search_mode}'] = self.output_df[f"rank_hit_{k}"].mean()
+
         row['thr'] = self.final_thrs
         row['weighted'] = self.weight
         summary_data.append(row)
 
 
         summary_table = pd.DataFrame(summary_data)
-        summary_table = summary_table.round(4)  # Round for nice readability
+        summary_table = summary_table.round(4) 
 
 
         csv_path = os.path.join(self.config['storage_path'],"metrics_retrieval.csv") 
 
-        # Check if file exists to decide header inclusion
         write_header = not os.path.exists(csv_path)
 
-        # Append results to CSV (retain history)
         summary_table.to_csv(csv_path, mode='a', index=False, header=write_header)
 
         #TODO: Generar tabla para LaTEX

@@ -33,7 +33,7 @@ class LDATM(object):
         lang1: str,
         lang2: str,
         model_folder: str,
-        num_topics: int = 35,
+        num_topics: int,
         alpha: float = 5.0,
         optimize_interval: int = 10,
         num_threads: int = 4,
@@ -145,6 +145,7 @@ class LDATM(object):
         for lang in [self._lang1, self._lang2]:
             df_lang = df.copy()
             # Filter the dataframe by language
+            import pdb; pdb.set_trace()
             df_lang = df_lang[df_lang.lang == lang]
 
             if df_lang.empty:
