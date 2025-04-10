@@ -143,6 +143,9 @@ def extract_metric_method(metric):
 # Extract the number of relevant passages for each query
 #annotations_grouped["num_relevant_docs"] = annotations_grouped["relevant_docs"].apply(lambda x: len(x) if isinstance(x, list) else 0)
 
+
+#DE aquí a abajo están los cálculos de métricas
+
 # Define the retrieval metrics to compute weighted means for
 retrieval_metrics = [
     "mrr_3", "mrr_5",

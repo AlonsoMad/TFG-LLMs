@@ -12,22 +12,30 @@ def main(search_mode, weight):
             "embedding_size": 384,
             "min_clusters": 8,
             "top_k_hits": 10,
-            "batch_size": 32,
+            "batch_size": 32, #Baja batch size si es necesario por limitación de la GPU
             "thr": 'var',
             "top_k": 10,
             'storage_path': '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data'
         }
 
     i = Indexer(file_path, mallet_path, mod_name, config)
+    i.index()
 
-    r = Retriever(file_path, mallet_path, mod_name, '/export/usuarios_ml4ds/ammesa/Data/question_bank', config)
+    r = Retriever(file_path, mallet_path, mod_name, '/export/usuarios_ml4ds/ammesa/Data/question_bank/10_04_25_questions', config)
     r._logger.info(f'Running experiment: {search_mode} with weight: {weight}')
     r.retrieval_loop(n_tpcs=6, weight=weight)
 
     return
 
 if __name__ == "__main__":
+    
     search_modes = ["TB_ANN", "TB_ENN", "ENN", "ANN"]
     weight_options = [True, False]
     for search_mode, weight in product(search_modes, weight_options):
         main(search_mode, weight)
+    
+    
+    #main('TB_ANN', True)
+    
+    
+    

@@ -7,7 +7,8 @@ import ast
 import time
 import pandas as pd
 import numpy as np
-from scipy import sparse
+from scipy import sparse, stats
+import scikit_posthocs as sp
 from sentence_transformers import SentenceTransformer, util
 from kneed import KneeLocator
 from tabulate import tabulate
@@ -549,6 +550,8 @@ class Retriever(NLPoperator):
                     df_q[key_results] = None
                 for id_row, row in tqdm(df_q.iterrows(), total=df_q.shape[0]):
                     if n_tpcs != 30:
+                        #import pdb; pdb.set_trace()
+                        print(row.doc_id)
                         row[f"theta_{n_tpcs}"] = self.raw[self.raw.id_preproc == row.doc_id].thetas.values[0]
                         row[f"top_k_{n_tpcs}"] = self.raw[self.raw.id_preproc == row.doc_id].top_k.values[0]
 
@@ -580,6 +583,7 @@ class Retriever(NLPoperator):
                         time_1.append(t1)
                         # print comparison of times
                         self._logger.info(f"{self.search_mode}: {t1:.2f}s")
+
                     
                     df_q.at[id_row, "results"] = results_1
 
@@ -716,6 +720,124 @@ class Retriever(NLPoperator):
         
         return dcg / idcg if idcg > 0 else 0
     
+    
+    def get_significance_marker(self, p_value):
+        if p_value < 0.001:
+            return "***"
+        elif p_value < 0.01:
+            return "**"
+        elif p_value < 0.05:
+            return "*"
+        else:
+            return ""
+        
+    def format_metric(self,metric):
+        return (
+                "MRR@3" if metric == "mrr_3" else
+                "MRR@5" if metric == "mrr_5" else
+                "NDCG@3" if metric == "ndcg_3" else
+                "NDCG@5" if metric == "ndcg_5" else
+                "Precision@3" if metric == "precision_3" else
+                "Precision@5" if metric == "precision_5" else
+                "Recall@3" if metric == "recall_3" else
+                "Recall@5" if metric == "recall_5" else
+                "RHit@3" if metric == "rank_hit_3" else
+                "RHit@5" if metric == "rank_hit_5" else
+                "Time (s)" if "time" in metric else
+                metric  # Fallback si no está en la lista
+            )
+    
+    def format_weighted_value(rself, row, significance_dict):
+
+        mean = f"{row['Weighted Mean']:.3f}"
+        ci = f"{row['95% CI']:.3f}"
+        value = f"{mean} \pm {ci}"
+    
+        metric = row["Metric"]
+        method = row["Method"]
+    
+        """
+        # Agregar '*' si Kruskal-Wallis indica diferencias significativas
+        if metric in significance_dict["Kruskal-Wallis p-value"]:
+            kw_p_value = significance_dict["Kruskal-Wallis p-value"][metric]
+            if kw_p_value < 0.05:
+                value += " *"  # Indica que hay diferencias globales
+        """
+        significance_marker = ""
+        if metric in significance_dict["Significant post-hoc tests (Dunn)"]:
+            dunn_df = significance_dict["Significant post-hoc tests (Dunn)"][metric]
+            for other_method in dunn_df.index:
+                if method in dunn_df.columns and other_method in dunn_df.index:
+                    p_val = dunn_df.loc[other_method, method]
+                    if p_val < 0.001:
+                        significance_marker = "***"
+                    elif p_val < 0.01:
+                        significance_marker = "**"
+                    elif p_val < 0.05:
+                        significance_marker = "*"
+    
+        value += f"^{{{significance_marker}}}"
+    
+        if row["Weighted Mean"] == row["BestValue"]:
+            return f"\\(\\boldsymbol{{{value}}}\\)"
+        else:
+            return f"\\({value}\\)"
+            
+
+    def check_normality(self, values):
+        stat, p_value = stats.shapiro(values)
+        return p_value > 0.05  
+
+    def perform_anova(self, groups):
+        f_stat, p_value = stats.f_oneway(*groups)
+        return f_stat, p_value
+
+    def perform_kruskal_wallis(self, groups):
+        h_stat, p_value = stats.kruskal(*groups)
+        return h_stat, p_value
+
+    def analyze_metrics(self, df_weighted, ks, metrics):
+        import pdb; pdb.set_trace()
+        results = []
+        df_long = df_weighted.melt(value_vars=[col for col in df_weighted.columns if any(m in col for m in metrics)],
+                              var_name='Metric', value_name='Value')
+        
+        
+
+        for metric in metrics:
+            for k in ks:
+                col_name = f'{metric}_{k}'
+                values = df_weighted[col_name].dropna()
+
+                # Check for normality
+                is_normal = self.check_normality(values)
+                
+                # If normal, perform ANOVA, else perform Kruskal-Wallis
+                if is_normal:
+                    groups = [values]  # In practice, you would group by categories if you had more than one group
+                    f_stat, p_value = self.perform_anova(groups)
+                    test_type = "ANOVA"
+                    test_stat = f_stat
+                else:
+                    groups = [values]  
+                    h_stat, p_value = self.perform_kruskal_wallis(groups)
+                    test_type = "Kruskal-Wallis"
+                    test_stat = h_stat
+
+                # Store the result for later
+                results.append({
+                    'Metric': f'{metric}@{k}',
+                    'Test': test_type,
+                    'Test Statistic': test_stat,
+                    'P-value': p_value,
+                    'Normality': is_normal
+                })
+
+        # Convert results to a DataFrame for easy viewing
+        results_df = pd.DataFrame(results)
+        print(tabulate(results_df, headers='keys', tablefmt='github', showindex=False))
+
+    
     #TODO: Cambia en el futuro con 3,5,10
     def evaluation(self, ks:list = [3,5,10]) -> None:
         '''
@@ -724,9 +846,31 @@ class Retriever(NLPoperator):
         '''
         df_aux = self.output_df
   
+        metrics = [
+            'mrr',
+            'precision',
+            'recall',
+            'ndcg',
+            'hit',
+            'rank_hit'
+        ]
+
+        method_mapping = {
+            "1": "ENN",
+            "2": "ANN",
+            "3_weighted": "TB-ENN-W",
+            "3_unweighted": "TB-ENN",
+            "4_weighted": "TB-ANN-W",
+            "4_unweighted": "TB-ANN",
+            "time_1": "ENN",
+            "time_2": "ANN",
+            "time_3_weighted": "TB-ENN-W",
+            "time_3_unweighted": "TB-ENN",
+            "time_4_weighted": "TB-ANN-W",
+            "time_4_unweighted": "TB-ANN",
+        }
 
 
-        og_df = pd.read_parquet(self.file_path)
         '''
         
         import pdb; pdb.set_trace()
@@ -794,8 +938,61 @@ class Retriever(NLPoperator):
         #TODO: Generar tabla para LaTEX
         print(tabulate(summary_table.head(10), headers='keys', tablefmt='github', showindex=False))
 
+        #Confindence interval calculations
+        ci_table = []
+        for metric in metrics:
+            for k in ks:
+                col_name = f'{metric}_{k}'
+                values = self.output_df[col_name]
+
+                weighted_mean = np.average(values)
+                weighted_var = np.average((values - weighted_mean) ** 2)
+                weighted_std = np.sqrt(weighted_var)
+                n = len(values)
+                ci = 1.96 * (weighted_std / np.sqrt(n)) if n > 1 else 0
+
+                ci_table.append((os.path.basename(self.question_path),
+                                 self.config['match'],
+                                 f'{metric}@{k}',
+                                 weighted_mean,
+                                 ci))                
+                
+        df_weighted = pd.DataFrame(ci_table, columns=["FileID", "Method", "Metric", "Weighted Mean", "95% CI"])
+
+        print(tabulate(df_weighted.head(10), headers='keys', tablefmt='github', showindex=False))
+        csv_cin_path(self.config['storage_path'],"metrics_conf_ints.csv") 
+
+        write_header = not os.path.exists(csv_path)
+        df_weighted.to_csv(csv_path, mode='a', index=False, header=write_header)
+
+
+        '''
+        df_keep = [col for col in self.output_df.columns if any(m in col for m in metrics)]
+        metric_columns = [col for col in self.output_df[df_keep].columns if ("results_" in col or "time" in col) and ("time_3" not in col and "time_4" not in col)]
+        df_long = self.output_df.melt(value_vars=metric_columns, var_name="Metric", value_name="Value")
+
+        df_long["Method"] = df_long["Metric"].apply(lambda x: 'ANN' if 'ann' in x else 'BM25')
+        df_long["Metric"] = df_long["Metric"].apply(lambda x: x.split('_')[0] + '@' + x.split('_')[-1])
+        #self.analyze_metrics(df_weighted=self.output_df, ks=ks, metrics=metrics)
+
+        for metric in df_long['Metric'].unique():
+            groups = [df_long[(df_long['Metric'] == metric) & (df_long['Method'] == method)]['Value'].dropna()
+                    for method in df_long['Method'].unique()]
+            
+            if all(len(g) > 0 for g in groups) and len(groups) >= 2:
+                p_values = [stats.shapiro(g)[1] for g in groups]
+                if all(p > 0.05 for p in p_values):
+                    stat, p = stats.f_oneway(*groups)
+                    print(f"{metric}: ANOVA p={p:.4f}")
+                else:
+                    stat, p = stats.kruskal(*groups)
+                    print(f"{metric}: Kruskal-Wallis p={p:.4f}")
+
+        '''
+        
 
         return
+
 
 class QueryEngine(NLPoperator):
     def __init__(self, file_path, model_path, model_name, thr, top_k):
