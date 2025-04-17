@@ -145,8 +145,11 @@ class LDATM(object):
         for lang in [self._lang1, self._lang2]:
             df_lang = df.copy()
             # Filter the dataframe by language
-            import pdb; pdb.set_trace()
             df_lang = df_lang[df_lang.lang == lang]
+
+            if 'id_preproc' in df_lang.columns:
+                df_lang.rename(columns={"id_preproc":"doc_id"})
+                df_lang['doc_id'] = df_lang['id_preproc']
 
             if df_lang.empty:
                 self._logger.error(

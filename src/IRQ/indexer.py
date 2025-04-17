@@ -514,6 +514,7 @@ class Retriever(NLPoperator):
 
         for path_queries in paths_:
             LANG = 'EN'
+            processed_rows = 0
 
             df_q = pd.read_excel(os.path.join(self.question_path, path_queries))
             #TODO: Solo para el entreno
@@ -551,10 +552,12 @@ class Retriever(NLPoperator):
                 for id_row, row in tqdm(df_q.iterrows(), total=df_q.shape[0]):
                     if n_tpcs != 30:
                         #import pdb; pdb.set_trace()
-                        print(row.doc_id)
+
                         row[f"theta_{n_tpcs}"] = self.raw[self.raw.id_preproc == row.doc_id].thetas.values[0]
                         row[f"top_k_{n_tpcs}"] = self.raw[self.raw.id_preproc == row.doc_id].top_k.values[0]
-
+                    
+                    processed_rows += 1
+                    print(100*processed_rows/len(df_q))
                     queries = ast.literal_eval(row.subqueries)
                     
                     if n_tpcs == 30:
@@ -720,124 +723,7 @@ class Retriever(NLPoperator):
         
         return dcg / idcg if idcg > 0 else 0
     
-    
-    def get_significance_marker(self, p_value):
-        if p_value < 0.001:
-            return "***"
-        elif p_value < 0.01:
-            return "**"
-        elif p_value < 0.05:
-            return "*"
-        else:
-            return ""
-        
-    def format_metric(self,metric):
-        return (
-                "MRR@3" if metric == "mrr_3" else
-                "MRR@5" if metric == "mrr_5" else
-                "NDCG@3" if metric == "ndcg_3" else
-                "NDCG@5" if metric == "ndcg_5" else
-                "Precision@3" if metric == "precision_3" else
-                "Precision@5" if metric == "precision_5" else
-                "Recall@3" if metric == "recall_3" else
-                "Recall@5" if metric == "recall_5" else
-                "RHit@3" if metric == "rank_hit_3" else
-                "RHit@5" if metric == "rank_hit_5" else
-                "Time (s)" if "time" in metric else
-                metric  # Fallback si no está en la lista
-            )
-    
-    def format_weighted_value(rself, row, significance_dict):
-
-        mean = f"{row['Weighted Mean']:.3f}"
-        ci = f"{row['95% CI']:.3f}"
-        value = f"{mean} \pm {ci}"
-    
-        metric = row["Metric"]
-        method = row["Method"]
-    
-        """
-        # Agregar '*' si Kruskal-Wallis indica diferencias significativas
-        if metric in significance_dict["Kruskal-Wallis p-value"]:
-            kw_p_value = significance_dict["Kruskal-Wallis p-value"][metric]
-            if kw_p_value < 0.05:
-                value += " *"  # Indica que hay diferencias globales
-        """
-        significance_marker = ""
-        if metric in significance_dict["Significant post-hoc tests (Dunn)"]:
-            dunn_df = significance_dict["Significant post-hoc tests (Dunn)"][metric]
-            for other_method in dunn_df.index:
-                if method in dunn_df.columns and other_method in dunn_df.index:
-                    p_val = dunn_df.loc[other_method, method]
-                    if p_val < 0.001:
-                        significance_marker = "***"
-                    elif p_val < 0.01:
-                        significance_marker = "**"
-                    elif p_val < 0.05:
-                        significance_marker = "*"
-    
-        value += f"^{{{significance_marker}}}"
-    
-        if row["Weighted Mean"] == row["BestValue"]:
-            return f"\\(\\boldsymbol{{{value}}}\\)"
-        else:
-            return f"\\({value}\\)"
-            
-
-    def check_normality(self, values):
-        stat, p_value = stats.shapiro(values)
-        return p_value > 0.05  
-
-    def perform_anova(self, groups):
-        f_stat, p_value = stats.f_oneway(*groups)
-        return f_stat, p_value
-
-    def perform_kruskal_wallis(self, groups):
-        h_stat, p_value = stats.kruskal(*groups)
-        return h_stat, p_value
-
-    def analyze_metrics(self, df_weighted, ks, metrics):
-        import pdb; pdb.set_trace()
-        results = []
-        df_long = df_weighted.melt(value_vars=[col for col in df_weighted.columns if any(m in col for m in metrics)],
-                              var_name='Metric', value_name='Value')
-        
-        
-
-        for metric in metrics:
-            for k in ks:
-                col_name = f'{metric}_{k}'
-                values = df_weighted[col_name].dropna()
-
-                # Check for normality
-                is_normal = self.check_normality(values)
-                
-                # If normal, perform ANOVA, else perform Kruskal-Wallis
-                if is_normal:
-                    groups = [values]  # In practice, you would group by categories if you had more than one group
-                    f_stat, p_value = self.perform_anova(groups)
-                    test_type = "ANOVA"
-                    test_stat = f_stat
-                else:
-                    groups = [values]  
-                    h_stat, p_value = self.perform_kruskal_wallis(groups)
-                    test_type = "Kruskal-Wallis"
-                    test_stat = h_stat
-
-                # Store the result for later
-                results.append({
-                    'Metric': f'{metric}@{k}',
-                    'Test': test_type,
-                    'Test Statistic': test_stat,
-                    'P-value': p_value,
-                    'Normality': is_normal
-                })
-
-        # Convert results to a DataFrame for easy viewing
-        results_df = pd.DataFrame(results)
-        print(tabulate(results_df, headers='keys', tablefmt='github', showindex=False))
-
-    
+       
     #TODO: Cambia en el futuro con 3,5,10
     def evaluation(self, ks:list = [3,5,10]) -> None:
         '''
@@ -924,16 +810,46 @@ class Retriever(NLPoperator):
         row['weighted'] = self.weight
         summary_data.append(row)
 
-
         summary_table = pd.DataFrame(summary_data)
         summary_table = summary_table.round(4) 
 
+        #Obtaining the data with full granularity:
+        metric_cols = []
+        for k in ks:
+            metric_cols.extend([
+                f"mrr_{k}",
+                f"precision_{k}",
+                f"recall_{k}",
+                f"ndcg_{k}",
+                f"hit_{k}",
+                f"rank_hit_{k}",
+            ])
 
-        csv_path = os.path.join(self.config['storage_path'],"metrics_retrieval.csv") 
+        # Step 2: Create a new DataFrame with only those columns
+        metrics_only_df = self.output_df[metric_cols].copy()
+
+        # Step 3: Add metadata columns with the same value for every row
+        metrics_only_df["retrieval_method"] = self.search_mode
+        metrics_only_df["thr"] = self.final_thrs
+        metrics_only_df["weighted"] = self.weight
+        
+        #For the big dataset we may need to use parquet
+        csv_full_path = os.path.join(self.config['storage_path'],"full_metrics.parquet")
+
+        if os.path.exists(csv_full_path):
+            existing_df = pd.read_parquet(parquet_path)
+            combined_df = pd.concat([existing_df, self.output_df], ignore_index=True)
+        else:
+            combined_df = self.output_df
+
+        combined_df.to_parquet(parquet_path, index=False)        
+
+        csv_path = os.path.join(self.config['storage_path'],"metrics_retrieval.csv")
 
         write_header = not os.path.exists(csv_path)
 
         summary_table.to_csv(csv_path, mode='a', index=False, header=write_header)
+
 
         #TODO: Generar tabla para LaTEX
         print(tabulate(summary_table.head(10), headers='keys', tablefmt='github', showindex=False))
@@ -960,10 +876,10 @@ class Retriever(NLPoperator):
         df_weighted = pd.DataFrame(ci_table, columns=["FileID", "Method", "Metric", "Weighted Mean", "95% CI"])
 
         print(tabulate(df_weighted.head(10), headers='keys', tablefmt='github', showindex=False))
-        csv_cin_path(self.config['storage_path'],"metrics_conf_ints.csv") 
+        csv_cin_path = os.path.join(self.config['storage_path'],"metrics_conf_ints.csv") 
 
-        write_header = not os.path.exists(csv_path)
-        df_weighted.to_csv(csv_path, mode='a', index=False, header=write_header)
+        write_header = not os.path.exists(csv_cin_path)
+        df_weighted.to_csv(csv_cin_path, mode='a', index=False, header=write_header)
 
 
         '''

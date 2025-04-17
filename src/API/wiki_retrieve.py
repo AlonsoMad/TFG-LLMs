@@ -228,6 +228,10 @@ class WikiRetriever():
         if progress % 2 == 0:
           print(str(progress) + "%", end = "\r", flush=True)
 
+      
+      if (self.doc_en_cnt + self.doc_es_cnt)%10000 == 0:
+        self.df_to_parquet()
+
     return
 
 

@@ -8,10 +8,6 @@ from src.metrics.coherence import *
 
 def main():
     
-    path_corpus_es = "/export/usuarios_ml4ds/ammesa/Data/lemmatized_data/es.parquet"
-    path_corpus_en = "/export/usuarios_ml4ds/ammesa/Data/lemmatized_data/en.parquet"
-    path_save_tr = "/export/usuarios_ml4ds/ammesa/Data/output_mallet"
-    path_save = "define"
     
     # Generate training data
     print("-- -- Generating training data")

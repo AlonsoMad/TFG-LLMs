@@ -37,14 +37,14 @@ if __name__ == "__main__":
 
     output_dir = os.path.join(father_dir, 'Data/0_input_data')
 
-    MAX_TRIES = 5
+    MAX_TRIES = 5000
     
     # Initialize WikiRetriever with desired parameters
     retriever = WikiRetriever(
         file_path=output_dir,
         seed_lan="en",
         seed_query="George Washington",
-        ndocs=2000  
+        ndocs=200000  
     )
 
     attempt = 0
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         try:
             # Run the retrieval process
             logging.info('Starting Wikipedia retrieval... Attempt: %d', attempt+1)
-            retriever.retrieval()
+            retriever.retrieval(alignment=0.75)
 
             # Save the dataset
             retriever.df_to_parquet()
@@ -65,7 +65,7 @@ if __name__ == "__main__":
             attempt += 1
             if attempt < MAX_TRIES:
                 logging.info("Retrying in %d seconds...", 2**attempt)
-                time.sleep(2**attempt)
+                time.sleep(2**min(attempt, 10))
             else:
                 logging.error("Max retries reached. Exiting.")
 

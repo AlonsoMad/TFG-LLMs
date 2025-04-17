@@ -2,7 +2,7 @@ import requests
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
-
+import os
 
 
 def calculate_cohr(words):
@@ -24,8 +24,8 @@ def calculate_cohr_parallel(topic_keys):
         coherence_scores = list(executor.map(calculate_cohr, topic_keys))
     return coherence_scores
 
-def extract_cohr(lang:str) -> np.float64:
-    path_keys = f"/export/usuarios_ml4ds/ammesa/mallet_folder/mallet_output/keys_{lang}.txt"
+def extract_cohr(path:str) -> np.float64:
+    path_keys = path #f"/export/usuarios_ml4ds/ammesa/mallet_folder/mallet_output/keys_{lang}.txt"
     with open(path_keys, 'r') as file:
         lines = file.readlines()
     topic_keys = [" ".join(line.strip().split()[:10]) for line in lines]
