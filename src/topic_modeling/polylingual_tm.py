@@ -91,7 +91,7 @@ class PolylingualTM(object):
         self._num_topics = num_topics
         self._alpha = alpha
         self._token_regexp = token_regexp
-        self._model_folder = model_folder
+        self._model_folder = pathlib.Path(model_folder)
         self._mallet_path = pathlib.Path(mallet_path)
         self._add_stops_path = pathlib.Path(add_stops_path)
         self._is_second_level = is_second_level
@@ -112,6 +112,7 @@ class PolylingualTM(object):
         # Create folder for the model
         # If a model with the same name already exists, save a copy; then create a new folder
         if not self._is_second_level:
+
             if self._model_folder.exists():
                 self._logger.info(
                     f"-- -- Given model folder {self._model_folder} already exists. Saving a copy ..."

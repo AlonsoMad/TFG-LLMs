@@ -49,25 +49,31 @@ if __name__ == "__main__":
 
     attempt = 0
 
-    while attempt < MAX_TRIES:
-        try:
-            # Run the retrieval process
-            logging.info('Starting Wikipedia retrieval... Attempt: %d', attempt+1)
-            retriever.retrieval(alignment=0.75)
+    
+#while attempt < MAX_TRIES:
+    #try:
+        # Run the retrieval process
+    logging.info('Starting Wikipedia retrieval... Attempt: %d', attempt+1)
+    retriever.retrieval(alignment=0.75)
 
-            # Save the dataset
-            retriever.df_to_parquet()
+    # Save the dataset
+    retriever.df_to_parquet()
 
-            logging.info(f"Dataset saved in %s/dataset.parquet.gzip", output_dir)
-            break
+    logging.info(f"Dataset saved in %s/dataset.parquet.gzip", output_dir)
+    #break
+
+    '''
         except:
-            logging.warning('Network exception ocurred')
-            attempt += 1
-            if attempt < MAX_TRIES:
-                logging.info("Retrying in %d seconds...", 2**attempt)
-                time.sleep(2**min(attempt, 10))
-            else:
-                logging.error("Max retries reached. Exiting.")
+        logging.warning('Network exception ocurred')
+        attempt += 1
+        if attempt < MAX_TRIES:
+            logging.info("Retrying in %d seconds...", 2*min(attempt, 5))
+            time.sleep(2*min(attempt, 5))
+        else:
+            logging.error("Max retries reached. Exiting.")
+
+    '''   
+
 
     #I should change this so it can adapt easily
     segmentated_dir = '/export/usuarios_ml4ds/ammesa/Data/1_segmented_data'
@@ -77,9 +83,9 @@ if __name__ == "__main__":
     os.makedirs(segmentated_dir, exist_ok=True)
 
     s = Segmenter(in_directory=output_dir,
-                  file_name=file_name,
-                  out_directory=segmentated_dir)
-    
+                file_name=file_name,
+                out_directory=segmentated_dir)
+
     print('Reading data')
     s.read_dataframe()
 
@@ -93,3 +99,16 @@ if __name__ == "__main__":
 
     trans.save_dataframes(segmentated_dir)
 
+
+    '''        
+    # Run the retrieval process
+    logging.info('Starting Wikipedia retrieval... Attempt: %d', attempt+1)
+    retriever.restart(alignment=0.75, path='/export/usuarios_ml4ds/ammesa/Data/0_input_data/dataset_2025-04-20.parquet.gzip')
+
+
+    # Save the dataset
+    retriever.df_to_parquet()
+
+    logging.info(f"Dataset saved in %s/dataset.parquet.gzip", output_dir)
+            
+    '''

@@ -31,7 +31,7 @@ top_k = 10
 _3_INSTRUCTIONS_PATH = "templates/question_answering.txt"
 _4_INSTRUCTIONS_PATH = "templates/discrepancy_detection.txt"
 RELEVANCE_PROMPT = "templates/test_relevance.txt"
-
+OLLAMA_HOST='http://kumo01.tsc.uc3m.es:11434'
 # Load SentenceTransformer model
 model = SentenceTransformer(model_name)
 
@@ -277,7 +277,7 @@ def main():
     
     prompter = Prompter(
         model_type=llm_model, 
-        ollama_host="http://kumo01.tsc.uc3m.es:11434")
+        ollama_host=OLLAMA_HOST)
     
     results = []
     for _, row in tqdm(df.iterrows(), total=len(df)):

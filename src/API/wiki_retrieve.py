@@ -58,6 +58,10 @@ class WikiRetriever():
                                                                                       "lang",
                                                                                       "url",
                                                                                       "equivalence"])
+    
+    self.en_doc_list = []
+    self.es_doc_list = []
+    
 
     self.agent = agent if agent is not None else wiki.Wikipedia(user_agent=self.project_name, language=self.seed_lan)
 
@@ -96,45 +100,63 @@ class WikiRetriever():
     two of them English and Spanish. Apart from that its 
     function its the same than its sister.
     '''
+    try:
+      query = self.agent.page(title)
+      #checks if the page is already in the collection
+      repeated_en = self.en_docs_df["title"].eq(query.title).any()
+      repeated_es = self.es_docs_df["title"].eq(query.title).any()
 
+      condition = (repeated_es or repeated_en)
 
-    query = self.agent.page(title)
-
-
-    #checks if the page is already in the collection
-    repeated_en = self.en_docs_df["title"].eq(query.title).any()
-    repeated_es = self.es_docs_df["title"].eq(query.title).any()
-
-    condition = (repeated_es or repeated_en)
-
-    if query.exists() and "es" in query.langlinks.keys() and not condition:
-
-      #check which lang is more populated
-      if self.doc_en_cnt >= self.doc_es_cnt:
-        #if it is english go with spanish
+      if query.exists() and "es" in query.langlinks.keys() and not condition:
         query_esp = query.langlinks["es"]
-        self.es_docs_df.loc[self.doc_es_cnt] = [query_esp.title,
-                                                query_esp.summary,
-                                                query_esp.text,
-                                                "es",
-                                                query.fullurl,
-                                                0]
-        self.doc_es_cnt += 1
+        #check which lang is more populated
+        if self.doc_en_cnt >= self.doc_es_cnt:
+          #if it is english go with spanish
+          self.es_doc_list.append([query_esp.title,
+                                    query_esp.summary,
+                                    query_esp.text,
+                                    "es",
+                                    query.fullurl,
+                                    0])
+          
+          self.doc_es_cnt += 1
+          if len(self.es_doc_list) >= 1000:
+            temp_df = pd.DataFrame(
+                  self.es_doc_list,
+                  columns=["title", "summary", "text", "lang", "url", "label"]
+              )
+            self.es_docs_df = pd.concat([self.es_docs_df, temp_df], ignore_index=True)
 
-      else:
-        #else choose english
-        self.en_docs_df.loc[self.doc_en_cnt] = [query.title,
-                                                query.summary,
-                                                query.text,
-                                                "en",
-                                                query.fullurl,
-                                                0]
-        self.doc_en_cnt += 1
+            # Clear the list after appending
+            self.es_doc_list.clear()
 
-    #whatever it is choose to populate the stack if needed
-      if self.max_size - len(self.next_doc_stack) >= 800:
-          next_titles = query.links.keys()
-          self.update_stack(next_titles)
+        else:
+          #else choose english
+          self.en_doc_list.append([query.title,
+                                    query.summary,
+                                    query.text,
+                                    "en",
+                                    query.fullurl,
+                                    0])
+          
+          self.doc_en_cnt += 1
+          if len(self.en_doc_list) >= 1000:
+            temp_df = pd.DataFrame(
+                  self.en_doc_list,
+                  columns=["title", "summary", "text", "lang", "url", "label"]
+              )
+            self.en_docs_df = pd.concat([self.en_docs_df, temp_df], ignore_index=True)
+
+            # Clear the list after appending
+            self.en_doc_list.clear()
+
+      #whatever it is choose to populate the stack if needed
+        if self.max_size - len(self.next_doc_stack) >= 800:
+            next_titles = query.links.keys()
+            self.update_stack(next_titles)
+    except:
+        print('Network exception ocurred')
 
     return
   
@@ -158,30 +180,50 @@ class WikiRetriever():
       #check that both languages are available
       if "es" in query.langlinks.keys():
         #Update english dict
-        self.en_docs_df.loc[self.doc_en_cnt] = [query.title,
-                                                query.summary,
-                                                query.text,
-                                                "en",
-                                                query.fullurl,
-                                                1]
+        #else choose english
+        self.en_doc_list.append([query.title,
+                                  query.summary,
+                                  query.text,
+                                  "en",
+                                  query.fullurl,
+                                  0])
+        
         self.doc_en_cnt += 1
+        if len(self.es_doc_list) >= 1000:
+          temp_df = pd.DataFrame(
+                self.en_doc_list,
+                columns=["title", "summary", "text", "lang", "url", "label"]
+            )
+          self.en_docs_df = pd.concat([self.en_docs_df, temp_df], ignore_index=True)
 
-        #Update the list
+          # Clear the list after appending
+          self.en_doc_list.clear()
 
+
+        #Update spanish
+        query_esp = query.langlinks["es"]
+        self.es_doc_list.append([query_esp.title,
+                                  query_esp.summary,
+                                  query_esp.text,
+                                  "es",
+                                  query.fullurl,
+                                  0])
+        
+        self.doc_es_cnt += 1
+        if len(self.en_doc_list) >= 1000:
+          temp_df = pd.DataFrame(
+                self.es_doc_list,
+                columns=["title", "summary", "text", "lang", "url", "label"]
+            )
+          self.es_docs_df = pd.concat([self.es_docs_df, temp_df], ignore_index=True)
+
+          # Clear the list after appending
+          self.es_doc_list.clear()
+        
         #If statement to update the stack only when its at 20% capacity
         if self.max_size - len(self.next_doc_stack) >= 800:
           next_titles = query.links.keys()
           self.update_stack(next_titles)
-
-        #Update spanish
-        query_esp = query.langlinks["es"]
-        self.es_docs_df.loc[self.doc_es_cnt] = [query_esp.title,
-                                                query_esp.summary,
-                                                query_esp.text,
-                                                "es",
-                                                query.fullurl,
-                                                1]
-        self.doc_es_cnt += 1
     return
 
   def retrieval(self, alignment: float = 1) -> None:
@@ -213,27 +255,49 @@ class WikiRetriever():
         else:
           new_title = self.next_doc_stack.pop(0)
           self.update_df_notaligned(new_title)
+        
+        if (self.doc_en_cnt + self.doc_es_cnt)%10000 == 0:
+          self.df_to_parquet()
 
-    #until completion
-    while self.doc_en_cnt < int(self.ndocs/2):
-      #handle first case
-      if self.doc_en_cnt == 0:
-        self.update_dataframes(self.seed_query)
+      #until completion
+      while self.doc_en_cnt < int(self.ndocs/2):
+        #handle first case
+        if self.doc_en_cnt == 0:
+          self.update_dataframes(self.seed_query)
 
-      else:
-        new_title = self.next_doc_stack.pop(0)
-        self.update_dataframes(new_title)
+        else:
+          new_title = self.next_doc_stack.pop(0)
+          self.update_dataframes(new_title)
 
-        progress = (self.doc_en_cnt + self.doc_es_cnt) / self.ndocs * 100
-        if progress % 2 == 0:
-          print(str(progress) + "%", end = "\r", flush=True)
+          progress = (self.doc_en_cnt + self.doc_es_cnt) / self.ndocs * 100
+          if progress % 2 == 0:
+            print(str(progress) + "%", end = "\r", flush=True)
 
-      
-      if (self.doc_en_cnt + self.doc_es_cnt)%10000 == 0:
-        self.df_to_parquet()
+        if (self.doc_en_cnt + self.doc_es_cnt)%10000 == 0:
+          self.df_to_parquet()
+        
 
     return
+  
+  def restart(self, alignment:float, path:str) -> None:
+    '''
+    In case of a failed execution, opens the chosen dataset,
+    picks up the last entry as seed and restarts the process
+    '''
+    aux_df = pd.read_parquet(path)
 
+    self.en_docs_df = aux_df[aux_df['lang'] == 'en']
+    self.es_docs_df = aux_df[aux_df['lang'] == 'es']
+
+    self.doc_en_cnt = len(self.en_docs_df)
+    self.doc_es_cnt = len(self.es_docs_df)
+
+    query = self.agent.page(self.seed_query)
+    next_titles = query.links.keys()
+    self.update_stack(next_titles)
+    self.retrieval(alignment)
+
+    return
 
   def df_to_parquet(self, collab:bool = False) -> None:
     '''

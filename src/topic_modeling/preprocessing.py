@@ -449,8 +449,8 @@ class DataPreparer():
 
     # Find the first occurrence where id_preproc starts with "T"
     idx = df_ordered[df_ordered["id_preproc"].str.startswith("T")].index.min()
-
-    if idx is not None:
+    import pdb; pdb.set_trace()
+    if idx is not None and not pd.isna(idx):
         # Select the portion of the DataFrame from that index onward
         df_pre = df_ordered.iloc[idx:].copy()
         df_pos = df_ordered.iloc[:idx].copy()

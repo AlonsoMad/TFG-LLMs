@@ -167,3 +167,6 @@ cython_debug/
 src/topic_modeling/Mallet-202108
 cache
 data
+coherences.csv
+k_value.txt
+polypath.txt

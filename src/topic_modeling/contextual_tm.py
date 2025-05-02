@@ -244,6 +244,14 @@ class ContextualTM(object):
             json.dump(self.topics, f, indent=4, ensure_ascii=False)
         self._logger.info(f'Topics saved in {topic_path}')
 
+        with open(topic_path, "r", encoding="utf-8") as f:
+            topics = json.load(f)
+        output_path = os.path.join(ZS_path, 'topics.txt')
+        with open(output_path, "w", encoding="utf-8") as f:
+            for idx, words in enumerate(topics):
+                word_str = " ".join(words)
+                f.write(f"{idx}\t{word_str}\n")
+
         # DOC LENGTHS    
         doc_l_path = os.path.join(ZS_path, 'doc_len.npy')
 

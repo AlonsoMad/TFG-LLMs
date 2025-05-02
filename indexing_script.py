@@ -10,6 +10,8 @@ def main(search_mode, weight):
     parser.add_argument('--mallet_folder', required=True, help='Path to folder where the LDA model will be stored')
     parser.add_argument('--question_folder', required=True,type=str, help='Path to folder with the questions')
     parser.add_argument('--k', required=True,type=int, help='Path to folder with the questions')
+    parser.add_argument('--bilingual', required=True,type=str)
+    parser.add_argument('--model', required=True,type=str)
 
 
     args = parser.parse_args()
@@ -18,6 +20,12 @@ def main(search_mode, weight):
     mallet_path = pathlib.Path(args.mallet_folder)
     question_folder = pathlib.Path(args.question_folder)
     k = args.k
+    model = args.model
+
+    if args.bilingual == 'bilingual':
+        bilingual = True
+    else:
+        bilingual = False
 
     mod_name = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2' #'sentence-transformers/LaBSE'
 
@@ -27,29 +35,32 @@ def main(search_mode, weight):
             "min_clusters": 8,
             "top_k_hits": 10,
             "batch_size": 32, #Baja batch size si es necesario por limitación de la GPU
-            "thr": 'var',
+            "thr": '0.01',
             "top_k": 10,
             'storage_path': '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data'
         }
 
     i = Indexer(file_path, mallet_path, mod_name, config)
-    i.index()
+    i.index(bilingual=bilingual, topic_model=model)
 
+    config['thr'] = 'var'
     r = Retriever(file_path, mallet_path, mod_name, question_folder, config)
     r._logger.info(f'Running experiment: {search_mode} with weight: {weight}')
-    r.retrieval_loop(n_tpcs=k, weight=weight)
+    r.retrieval_loop(bilingual=bilingual, n_tpcs=k, topic_model=model, weight=weight)
 
     return
 
 if __name__ == "__main__":
     
-    search_modes = ["TB_ANN","TB_ENN"]
+    search_modes = ["TB_ENN","TB_ANN"]
     weight_options = [True, False]
     for search_mode, weight in product(search_modes, weight_options):
         main(search_mode, weight)
     search_modes = ["ENN", "ANN"]
     for search_mode in search_modes:
         main(search_mode, True)
+
+    
 
     
     
