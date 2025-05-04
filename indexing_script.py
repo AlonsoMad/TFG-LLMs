@@ -22,10 +22,7 @@ def main(search_mode, weight):
     k = args.k
     model = args.model
 
-    if args.bilingual == 'bilingual':
-        bilingual = True
-    else:
-        bilingual = False
+    bilingual = args.bilingual == 'bilingual'
 
     mod_name = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2' #'sentence-transformers/LaBSE'
 
@@ -52,7 +49,7 @@ def main(search_mode, weight):
 
 if __name__ == "__main__":
     
-    search_modes = ["TB_ENN","TB_ANN"]
+    search_modes = ["TB_ANN","TB_ENN"]
     weight_options = [True, False]
     for search_mode, weight in product(search_modes, weight_options):
         main(search_mode, weight)

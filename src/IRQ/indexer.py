@@ -125,7 +125,7 @@ class Indexer(NLPoperator):
         self.config = default_config if config is None else {**default_config, **config}
 
         if self.config['match'] not in {'ENN', 'ANN', 'TB_ANN', 'TB_ENN'}:
-            raise(f'Invalid value for match: {self.config['match']}, it has to be "ENN","ANN","TB_ENN","TB_ANN"')
+            raise(f'Invalid value for match: {self.config['match']}, it has to be "ENN","ANN","TB_ENN","TB_ANN"') #type: ignore
 
         return
     
@@ -255,7 +255,7 @@ class Indexer(NLPoperator):
             elif float(thr) or thr == '0.0':
                 threshold = threshold = np.full(thetas.shape[1], float(thr))
             else:
-                raise(f'Invalid value for config threshold: {thr}, it has to be a float number in a str or "var"!')
+                raise(f'Invalid value for config threshold: {thr}, it has to be a float number in a str or "var"!') # type: ignore
 
 
             #Case switch with the different indexing modes:
@@ -367,12 +367,12 @@ class Retriever(NLPoperator):
         self.output_df = None
 
         if self.config['match'] not in {'ENN', 'ANN', 'TB_ANN', 'TB_ENN'}:
-            raise(f'Invalid value for match: {self.config['match']}, it has to be "ENN","ANN","TB_ENN","TB_ANN"')
+            raise(f'Invalid value for match: {self.config['match']}, it has to be "ENN","ANN","TB_ENN","TB_ANN"') # type: ignore
         
                 
         search_mode = self.config['match'].lower()
         if search_mode not in {'enn', 'ann', 'tb_enn', 'tb_ann'}:
-            raise(f'Invalid value for match: {search_mode}, it has to be "enn", "ann" or "tb_enn", "tb_ann"')
+            raise(f'Invalid value for match: {search_mode}, it has to be "enn", "ann" or "tb_enn", "tb_ann"') # type: ignore
         else:
             self.search_mode = search_mode
 
@@ -407,6 +407,7 @@ class Retriever(NLPoperator):
 
                 self._logger.info(f'Reading raw docs')
                 self.raw = pd.read_parquet(self.file_path)
+                
             elif topic_model == 'mallet':
                 thetas_path = os.path.join(self.model_path, 'mallet_output', f'thetas_EN.npz')
                 thetas_en = sparse.load_npz(thetas_path).toarray()
@@ -557,12 +558,12 @@ class Retriever(NLPoperator):
 
         return res
 
-    def retrieval_loop(self, bilingual: bool, n_tpcs : int, topic_model:str , weight : bool = False):
+    def retrieval_loop(self, bilingual: bool, n_tpcs : int, topic_model:str , weight : bool = False, question_df: pd.DataFrame = None):
  
         self.weight = weight
          #Check if indexing has been done
         if not self.check_idx():
-            self.indexer.index(bilingual=bilingual)
+            self.indexer.index(bilingual=bilingual, topic_model=topic_model)
  
         #Get embeddings and thetas
         self.read_thetas_em(bilingual=bilingual, topic_model=topic_model)
@@ -574,7 +575,11 @@ class Retriever(NLPoperator):
             LANG = 'EN'
             processed_rows = 0
 
-            df_q = pd.read_excel(os.path.join(self.question_path, path_queries))
+            if question_df is not None:
+                df_q = question_df
+            else:
+                df_q = pd.read_excel(os.path.join(self.question_path, path_queries))
+
             #TODO: Solo para el entreno
             if not bilingual and "id" in df_q.columns:
                 df_q = df_q.rename(columns={"id": "doc_id"})
@@ -646,7 +651,6 @@ class Retriever(NLPoperator):
                         # print comparison of times
                         self._logger.info(f"{self.search_mode}: {t1:.2f}s")
 
-                    
                     df_q.at[id_row, "results"] = results_1
                     df_q.at[id_row, "time"] = time_1
 
@@ -680,7 +684,6 @@ class Retriever(NLPoperator):
 
                 
                 df_q_eval = df_q_eval.explode("all_results", ignore_index=True)
-
                 
                 doc_map = self.raw.set_index("doc_id")["raw_text"].to_dict()
                 df_q_eval["all_results_content"] = df_q_eval["all_results"].map(doc_map)
@@ -704,6 +707,7 @@ class Retriever(NLPoperator):
                 self.final_thrs = save_thr
                 self.output_df = df_q_eval
 
+                #Puedo comentarlo para funcionalidad final
                 self.evaluation()
 
         return
@@ -819,22 +823,9 @@ class Retriever(NLPoperator):
             "time_4_unweighted": "TB-ANN",
         }
 
-
-        
-        
-        #import pdb; pdb.set_trace()
-
         df_aux['relevant_docs'] = df_aux['relevant_docs'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
 
-        '''
-        mapping_inv = dict(zip(og_df['id_preproc'], og_df['doc_id']))
 
-        def map_relevant_docs_to_doc_ids(row):
-            return [mapping_inv.get(id_preproc, None) for id_preproc in row]
-        
-        df_aux['relevant_docs'] = df_aux['relevant_docs'].apply(map_relevant_docs_to_doc_ids)
-        '''
-        #import pdb;pdb.set_trace()
 
         self.output_df = (
             df_aux.groupby('question')
@@ -850,6 +841,28 @@ class Retriever(NLPoperator):
             })
             .reset_index()
         )
+
+        relevant_docs = self.output_df.get('relevant_docs')
+
+        #ZAPATA ASQUEROSA ELIMINAR SI POSIBLE
+        if (
+            self.config['match'] == 'TB_ANN' and
+            relevant_docs is not None and
+            len(relevant_docs) > 0 and
+            isinstance(relevant_docs[0], list) and
+            len(relevant_docs[0]) > 0 and
+            isinstance(relevant_docs[0][0], str)
+        ):
+            og_df = pd.read_parquet(self.file_path)
+
+            mapping_inv = dict(zip(og_df['id_preproc'], og_df['doc_id']))
+
+            def map_relevant_docs_to_doc_ids(row):
+                return [mapping_inv.get(id_preproc) for id_preproc in row]
+
+            self.output_df['relevant_docs'] = self.output_df['relevant_docs'].apply(map_relevant_docs_to_doc_ids)
+
+            
 
         for k in ks:
             self.output_df[f"mrr_{k}"] = self.output_df.apply(lambda x: self.multiple_mean_reciprocal_rank_at_k(x, k=k), axis=1)

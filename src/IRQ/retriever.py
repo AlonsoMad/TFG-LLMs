@@ -14,7 +14,7 @@ from kneed import KneeLocator
 from tabulate import tabulate
 from scipy.ndimage import uniform_filter1d
 import re
-from src.IRQ.indexer import NLPoperator
+from src.IRQ.indexer import *
 
 class Retriever(NLPoperator):
     '''

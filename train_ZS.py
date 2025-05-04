@@ -35,7 +35,7 @@ def main():
 
     storing_path = os.path.join('/export/usuarios_ml4ds/ammesa/Data/3_joined_data', src_file)
     os.makedirs(storing_path,exist_ok=True)
-    file_name = 'polylingual_df.parquet.gzip' 
+    file_name = 'polylingual_df' 
     full_path = os.path.join(storing_path, file_name)
 
     #Ensure the storing path exists

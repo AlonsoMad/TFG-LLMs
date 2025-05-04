@@ -60,7 +60,7 @@ def main():
             model_folder=out_path,
             num_topics=k
         )
-        model.train(os.path.join(storing_path, file_name))
+        model.train(pathlib.Path(full_path))
         topic_coherences[idx] = extract_cohr(path_cohr)
     
     k = n_topics[np.argmax(topic_coherences)]
@@ -80,7 +80,7 @@ def main():
         model_folder=out_path,
         num_topics=k
     )
-    model.train(os.path.join(storing_path, 'polylingual_df'))
+    model.train(pathlib.Path(os.path.join(storing_path, 'polylingual_df')))
 
 
 

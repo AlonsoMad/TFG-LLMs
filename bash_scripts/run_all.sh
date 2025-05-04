@@ -1,10 +1,9 @@
 #!/bin/bash
-set -euo pipefail
 
 echo "Starting pipeline execution..."
 
 MODE="bilingual"  # Options: monolingual | bilingual
-MODEL="zeroshot"  # Options: zeroshot | lda | mallet 
+MODEL="mallet"  # Options: zeroshot | lda | mallet 
 LANG1="en"
 LANG2="es"
 GENERATE_DS="NO"
@@ -13,7 +12,6 @@ SOURCE_FILE2="es_2025-02-25_segmented_dataset.parquet.gzip"
 NL_DEST_PATH="/export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data/toy_ds_folder"
 QUESTION_FOLDER="/export/usuarios_ml4ds/ammesa/Data/question_bank/toy_questions"
 N_TOPICS='6,9,12,15,20,30,50'
-
 
 echo "Starting NLPIPE execution with: "
 echo "Source: $SOURCE_FILE"
@@ -95,19 +93,19 @@ else
     exit 1
 fi
 
-
 echo "Sucessful execution"
 # --- STEP 2: Activate virtual environment ---
 echo "Activating virtual environment for model training..."
-deactivate
+
 source "/export/usuarios_ml4ds/ammesa/TFG-LLMs/.venv_idx/bin/activate"
-K=$(cat k_value.txt)
+K=$(cat "/export/usuarios_ml4ds/ammesa/TFG-LLMs/k_value.txt")
 POLY_PATH=$(cat polypath.txt)
+
 echo "Performing IRQ processes"
 python3 -m indexing_script \
-    --input_path $POLY_PATH\
+    --input_path "$POLY_PATH"\
     --mallet_folder  $MALLET_FOLDER \
     --question_folder $QUESTION_FOLDER \
-    --k $K \
+    --k "$K" \
     --bilingual $MODE \
     --model $MODEL
