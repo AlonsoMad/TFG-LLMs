@@ -6,12 +6,11 @@ import os
 import tqdm
 import sys
 import time
-import textwrap
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 from src.IRQ.indexer import *
 from src.IRQ.query_eng import *
 from src.mind.query_generator import QueryGenerator
-
+from src.utils.utils import clear_screen, print_doc
 
 class CLI:
     def __init__(self):
@@ -27,11 +26,11 @@ class CLI:
                                     'Exit menu' ]
                     }
 
-        #self.query_engine = QueryEngine(       )
+        self.q_engine = None
     
     def _resolve_model_path(self):
         # Just abstract it once
-        dataset_name = 'en_2025-02-25_segmented_dataset.parquet.gzip'
+        dataset_name = "en_2025-03-03_segm_trans"
         return os.path.join('/export/usuarios_ml4ds/ammesa/mallet_folder', dataset_name, 'mallet_output')
 
     def _load_topics(self):
@@ -53,7 +52,7 @@ class CLI:
 
     def _load_docs(self):
         try:
-            file_path = '/export/usuarios_ml4ds/ammesa/Data/3_joined_data/en_2025-02-25_segmented_dataset.parquet.gzip/polylingual_df'
+            file_path = '/export/usuarios_ml4ds/ammesa/Data/3_joined_data/en_2025-03-03_segm_trans/polylingual_df'
             dataset = pd.read_parquet(file_path)
             self.dataset = dataset
         except FileNotFoundError:
@@ -61,20 +60,32 @@ class CLI:
 
         return
 
-    def clear_screen(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
+    def _init_q_en(self, q_path:str):
+        '''
+        Initializes the query generator and handler
+        '''
+        config={  
+            "match": 'TB_ENN',
+            "embedding_size": 384,
+            "min_clusters": 8,
+            "top_k_hits": 10,
+            "batch_size": 32,
+            "thr": '0.01',
+            "top_k": 10,
+            'storage_path': '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data'
+        }
 
-    def print_doc(self, doc):
-        max_w = 80
-        delay = 0.01
-        wrapped_lines = textwrap.wrap(doc['raw_text'], width=max_w)
+        qg = QueryEngine(
+            file_path='/export/usuarios_ml4ds/ammesa/Data/3_joined_data/en_2025-03-03_segm_trans/polylingual_df',
+            model_path='/export/usuarios_ml4ds/ammesa/mallet_folder/en_2025-03-03_segm_trans',
+            model_name='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
+            config=config,
+            q_path=q_path
+        )
+        self.q_engine = qg
 
-        for line in wrapped_lines:
-            for char in line:
-                print(char, end='', flush=True)
-                time.sleep(delay)
-            print()  # Newline after each wrapped line
         return
+
 
     def inspect_topics(self, topic_number:int):
         #Search for the most representative doc of that topic
@@ -90,7 +101,7 @@ class CLI:
         pd.DataFrame.from_dict(menu)
         idx = 0
         while cond:
-            self.clear_screen()
+            clear_screen()
             print(tabulate(menu, headers='keys', tablefmt='github', showindex=False))
             print("\n======================================================\n")
             subset = self.thetas_en[:,topic_number]
@@ -98,7 +109,7 @@ class CLI:
             top_n_idx_sorted = top_n_idx_unsorted[np.argsort(-subset[top_n_idx_unsorted])]  
 
             documents = self.dataset[self.dataset['doc_id'].isin(top_n_idx_sorted)]
-            self.print_doc(documents.iloc[idx])
+            print_doc(documents.iloc[idx])
             option = input('').strip()
             while option not in set(menu['option']):
                 option = input('\nWrong option, choose [n,p,r]\n')
@@ -112,15 +123,34 @@ class CLI:
 
         return
 
-    def retrieval(self, topic_number:int):
+    def retrieval(self, topic_number:int, n_sample:int):
         '''
         Initiates the IRQ process and retrieves contradictions for the main user
+        
+        - topic_number: int
+            The number associated with the topic of the analyzed documents
         '''
+        clear_screen()
         #Obtain docs in which the selected topic is the most representative.
         subset = np.where(self.thetas_en[:, topic_number] == self.thetas_en.max(axis=1))[0]
         documents = self.dataset[self.dataset['doc_id'].isin(subset)]
         
+        documents = documents.sample(n_sample)
+
         #save that dataframe to generate questions
+        path = f'/export/usuarios_ml4ds/ammesa/mind_folder/question_bank'
+        os.makedirs(path, exist_ok=True)
+
+        if self.q_engine == None:
+            self._init_q_en(q_path=path)
+        
+        path = os.path.join(path,f'topic_{topic_number}', f'questions_len_{n_sample}')
+        self.q_engine.retriever.update_q_path(path=path)
+
+        df_aux = self.q_engine.generate_questions_queries(documents)
+        self.q_engine.save_questions(df_aux, topic_number)
+
+        self.q_engine.answer_loop(df_aux, topic_number)
 
         return
 
@@ -140,7 +170,7 @@ class CLI:
 
             cond = True
             while cond:
-                self.clear_screen()
+                clear_screen()
                 print(tabulate(topic_df, headers='keys', tablefmt='github', showindex=True))
 
                 choice = input(f"\nSelect topic # (0-{len(self.topics)-1}) or [r] to return: ").strip()
@@ -167,7 +197,7 @@ class CLI:
 
             cond = True
             while cond:
-                self.clear_screen()
+                clear_screen()
                 print(tabulate(topic_df, headers='keys', tablefmt='github', showindex=True))
 
                 choice = input(f"\nSelect topic # (0-{len(self.topics)-1}) or [r] to return: ").strip()
@@ -178,7 +208,22 @@ class CLI:
                 if choice.isdigit():
                     topic = int(choice)
                     if topic in range(len(self.topics)):
-                        self.retrieval(topic_number=topic)
+
+                        n_sample = input(f'\nSelect the number of samples to analyze: ').strip()
+                        while not n_sample.isdigit() and n_sample != 'r':
+                            n_sample = input(f'\nSelect an int number of samples or return [r]: ').strip()
+                        
+                        if n_sample == 'r':
+                            
+                            cond = False
+                        elif int(n_sample) > len(np.where(self.thetas_en[:, topic] == self.thetas_en.max(axis=1))[0]):
+                            n_sample=len(np.where(self.thetas_en[:, topic] == self.thetas_en.max(axis=1))[0])
+                            self.retrieval(topic_number=topic, n_sample=n_sample)
+
+                        else:
+                            n_sample=int(n_sample)
+                            self.retrieval(topic_number=topic, n_sample=n_sample)
+
                 else:
                     print('Invalid option chosen\n')
 
@@ -186,30 +231,24 @@ class CLI:
             print('Entering debugging mode!\n')
         else:
             print('Exiting program!\n')
-            self.clear_screen()
+            clear_screen()
             result = False
     
         return result
 
     def main_loop(self):
-        print('Initializing contradiction engine...')
-
         cond = True
         while cond:
             pd.DataFrame.from_dict(self.menu)
 
-            self.clear_screen()
+            clear_screen()
             print(tabulate(self.menu, headers='keys', tablefmt='github', showindex=False))
-            try:
-                choice = input('\nPlease select one from the following\n').strip()       
-            except:
-                raise(Exception)
             
+            choice = input('\nPlease select one from the following\n').strip()       
+
             while choice not in self.menu['option']:
-                try:
-                    choice = input('Invalid option choose between [1,2,3,x]\n').strip()       
-                except:
-                    raise(Exception)
+                choice = input('Invalid option choose between [1,2,3,x]\n').strip()       
+                
                         
             cond = self.select(choice)
 
@@ -217,4 +256,7 @@ class CLI:
 
 if __name__ == '__main__':
     cli = CLI()
-    cli.main_loop()
+    try:
+        cli.main_loop()
+    except KeyboardInterrupt:
+        print('\nExiting')

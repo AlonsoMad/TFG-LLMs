@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import logging
 from datetime import date
+from tqdm import tqdm
 from transformers import pipeline, AutoTokenizer
 from datasets import Dataset
 
@@ -87,8 +88,7 @@ class Segmenter():
         entry represents a paragraph of the original
         '''
         self._logger.info("Starting segmentation!")
-
-        for i, row in self.input_df.iterrows():
+        for i, row in tqdm(self.input_df.iterrows(), total=len(self.input_df), desc="Processing rows"):
 
           #Separates each text over the paragraph
           split_text = row['text'].split("\n")
@@ -107,15 +107,7 @@ class Segmenter():
                                               len(self.segmented_df),
                                               row["equivalence"],
                                               row['id_preproc']+"_"+str(_)]
-
-          progress = 100*i/len(self.input_df)
-
-          last_prog = 0
-
-          if progress % 10 == 0 and progress != last_prog:
-
-              logging.info(f"Progress: {progress}%")
-              last_prog = progress            
+        
 
         self.en_df = self.segmented_df[self.segmented_df['lang'] == 'en']
         self.es_df = self.segmented_df[self.segmented_df['lang'] == 'es']
@@ -403,6 +395,7 @@ class DataPreparer():
     stores them into the object as pd.Dataframes
     '''
     for df in [self.name_en, self.name_es]:
+      import pdb; pdb.set_trace()
       if not os.path.exists(self.path_folder):
         raise Exception('Path not found, check again')
 

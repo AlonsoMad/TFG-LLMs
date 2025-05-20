@@ -7,6 +7,7 @@ import logging
 
 
 if __name__ == "__main__":
+   
     # Define output directory
     dir = os.path.dirname(os.path.abspath(__file__))
     father_dir = os.path.split(dir)[0]
@@ -44,17 +45,18 @@ if __name__ == "__main__":
         file_path=output_dir,
         seed_lan="en",
         seed_query="George Washington",
-        ndocs=200000  
+        ndocs=20000
     )
 
     attempt = 0
 
+    '''
     
-#while attempt < MAX_TRIES:
+    #while attempt < MAX_TRIES:
     #try:
         # Run the retrieval process
     logging.info('Starting Wikipedia retrieval... Attempt: %d', attempt+1)
-    retriever.retrieval(alignment=0.75)
+    retriever.retrieval()
 
     # Save the dataset
     retriever.df_to_parquet()
@@ -62,6 +64,7 @@ if __name__ == "__main__":
     logging.info(f"Dataset saved in %s/dataset.parquet.gzip", output_dir)
     #break
 
+    '''
     '''
         except:
         logging.warning('Network exception ocurred')
@@ -73,16 +76,16 @@ if __name__ == "__main__":
             logging.error("Max retries reached. Exiting.")
 
     '''   
-
+        
 
     #I should change this so it can adapt easily
-    segmentated_dir = '/export/usuarios_ml4ds/ammesa/Data/1_segmented_data'
+    segmentated_dir = '/export/usuarios_ml4ds/ammesa/Data/1.5_trans_data/wiki_aligned_trans'
 
-    file_name = retriever.final_file_name
+    file_name = 'unaligned_dataset_75_per' #retriever.final_file_name
 
     os.makedirs(segmentated_dir, exist_ok=True)
 
-    s = Segmenter(in_directory=output_dir,
+    s = Segmenter(in_directory='/export/usuarios_ml4ds/ammesa/Data/1_segmented_data/unaligned_18-05',
                 file_name=file_name,
                 out_directory=segmentated_dir)
 
@@ -90,17 +93,19 @@ if __name__ == "__main__":
     s.read_dataframe()
 
     print('Segmenting data')
-    s.segment()
+    #s.segment()
+    
+    aux_df_es=pd.read_parquet('/export/usuarios_ml4ds/ammesa/Data/1_segmented_data/unaligned_18-05/segmented/es_2025-05-19_segmented_dataset.parquet.gzip')
+    aux_df_en=pd.read_parquet('/export/usuarios_ml4ds/ammesa/Data/1_segmented_data/unaligned_18-05/segmented/en_2025-05-19_segmented_dataset.parquet.gzip')
 
     #Finally translating and completing the datasets
-    trans = Translator(s.en_df, s.es_df)
+    trans = Translator(aux_df_en, aux_df_es)#s.en_df, s.es_df)
 
     trans.translate()
 
     trans.save_dataframes(segmentated_dir)
 
-
-    '''        
+    '''
     # Run the retrieval process
     logging.info('Starting Wikipedia retrieval... Attempt: %d', attempt+1)
     retriever.restart(alignment=0.75, path='/export/usuarios_ml4ds/ammesa/Data/0_input_data/dataset_2025-04-20.parquet.gzip')
@@ -110,5 +115,8 @@ if __name__ == "__main__":
     retriever.df_to_parquet()
 
     logging.info(f"Dataset saved in %s/dataset.parquet.gzip", output_dir)
-            
+
     '''
+    
+            
+    

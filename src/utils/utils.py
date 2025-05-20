@@ -2,10 +2,11 @@ import logging
 import pathlib
 from datetime import datetime
 from typing import Dict, Optional
-
+import textwrap
+import os
 import pandas as pd
 import yaml
-
+import time
 def read_data(file_path) -> pd.DataFrame: 
     '''
     Reads the specified paths for thetas and for the DataFrame
@@ -17,6 +18,20 @@ def read_data(file_path) -> pd.DataFrame:
         df = pd.read_parquet(file_path)
         print("Dataframe read sucessfully!")
     return df
+
+def print_doc(doc):
+    max_w = 80
+    delay = 0.01
+    wrapped_lines = textwrap.wrap(doc['raw_text'], width=max_w)
+
+    for line in wrapped_lines:
+        for char in line:
+            print(char, end='', flush=True)
+            time.sleep(delay)
+        print()  # Newline after each wrapped line
+    return
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 def log_or_print(
     message: str,

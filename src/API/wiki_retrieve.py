@@ -2,7 +2,7 @@
 Python class for the WikiRetriever object. Given a System output path and a number of documents creates a .parquet dataset in that path with the specified length.
 Documents limited to english and spanish. Originally the seed page is George Washington (no desambiguation needed), it can be changed to anything
 '''
-
+from tqdm import tqdm
 import wikipediaapi as wiki
 import pandas as pd
 import numpy as np
@@ -226,6 +226,29 @@ class WikiRetriever():
           self.update_stack(next_titles)
     return
 
+
+  def append_df(self, lang:str):
+    if lang == 'es':
+      temp_df = pd.DataFrame(
+        self.es_doc_list,
+        columns=["title", "summary", "text", "lang", "url", "label"]
+      )
+      self.es_docs_df = pd.concat([self.es_docs_df, temp_df], ignore_index=True)
+
+      # Clear the list after appending
+      self.es_doc_list.clear()
+    else:
+      temp_df = pd.DataFrame(
+        self.en_doc_list,
+        columns=["title", "summary", "text", "lang", "url", "label"]
+      )
+      self.en_docs_df = pd.concat([self.en_docs_df, temp_df], ignore_index=True)
+
+      # Clear the list after appending
+      self.en_doc_list.clear()
+
+    return
+
   def retrieval(self, alignment: float = 1) -> None:
     '''
     Main loop of the function, will recursively iterate until reaching
@@ -245,7 +268,8 @@ class WikiRetriever():
     if alignment > 1 or alignment < 0:
       raise Exception('Alignment must be bound [0,1]')
     
-    elif alignment != 1:
+    else:
+      import pdb; pdb.set_trace()
       #get the number of different docs
       ndocs_notalign = int((1-alignment)*self.ndocs)
       #get each doc in one or other language
@@ -260,22 +284,25 @@ class WikiRetriever():
           self.df_to_parquet()
 
       #until completion
-      while self.doc_en_cnt < int(self.ndocs/2):
-        #handle first case
-        if self.doc_en_cnt == 0:
-          self.update_dataframes(self.seed_query)
+      with tqdm(total=int(self.ndocs/2)) as pbar:
 
-        else:
-          new_title = self.next_doc_stack.pop(0)
-          self.update_dataframes(new_title)
+        while self.doc_en_cnt < int(self.ndocs/2):
+          #handle first case
+          if self.doc_en_cnt == 0:
+            self.update_dataframes(self.seed_query)
 
-          progress = (self.doc_en_cnt + self.doc_es_cnt) / self.ndocs * 100
-          if progress % 2 == 0:
-            print(str(progress) + "%", end = "\r", flush=True)
+          else:
+            new_title = self.next_doc_stack.pop(0)
+            self.update_dataframes(new_title)
 
-        if (self.doc_en_cnt + self.doc_es_cnt)%10000 == 0:
-          self.df_to_parquet()
-        
+          pbar.n = self.doc_en_cnt
+          pbar.refresh()
+
+          if (self.doc_en_cnt + self.doc_es_cnt)%10000 == 0:
+            self.df_to_parquet()
+      
+      self.append_df('en')
+      self.append_df('es')
 
     return
   
@@ -298,6 +325,7 @@ class WikiRetriever():
     self.retrieval(alignment)
 
     return
+  
 
   def df_to_parquet(self, collab:bool = False) -> None:
     '''

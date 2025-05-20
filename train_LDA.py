@@ -1,9 +1,11 @@
-from src.topic_modeling.lda_tm import *
-from src.metrics.coherence import *
-import argparse
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from src.topic_modeling.lda_tm import *
+from src.metrics.coherence import *
+import argparse
+
 
 def main():
     '''
@@ -23,9 +25,8 @@ def main():
     #Get the topics in the correct format for the loop
     n_topics = list(map(int, args.num_topics.split(',')))
     lang = args.lang
-
     df_aux = pd.read_parquet(path)
-    df_aux.loc[:, 'lang'] = 'EN'
+    df_aux.loc[:, 'lang'] = 'en'
     #df_aux['doc_id'] = df_aux.index
     df_aux.to_parquet(path)
     
@@ -38,8 +39,9 @@ def main():
             model_folder = model_folder,
             num_topics = k
         )
+        import pdb; pdb.set_trace()
         model.train(path)
-        path_cohr = f'/export/usuarios_ml4ds/ammesa/LDA_folder/mallet_output/{lang}/topickeys.txt'
+        path_cohr = f'/export/usuarios_ml4ds/ammesa/LDA_folder/mallet_output/{lang.upper()}/topickeys.txt'
         topic_coherences[idx] = extract_cohr(path_cohr)
 
     k = n_topics[np.argmax(topic_coherences)]
@@ -55,6 +57,9 @@ def main():
 
     with open("k_value.txt", "w") as f:
         f.write(str(k))
+
+    with open("polypath.txt", "w") as f:
+        f.write(str(path))
 
     df_coherences.to_csv("coherences.csv", index=False)
 

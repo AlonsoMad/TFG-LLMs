@@ -312,7 +312,7 @@ def main():
                 
                 ##############################################
                 # CHECK RELEVANCE OF PASSAGE TO THE QUESTION #
-                ##############################################
+                ##############################################x
                 with open(RELEVANCE_PROMPT, 'r') as file: template = file.read()
                 formatted_template = template.format(passage=passage_t, question=row.question)
                 

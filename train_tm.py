@@ -31,6 +31,7 @@ def main():
     os.makedirs(storing_path,exist_ok=True)
 
     file_name = 'polylingual_df' 
+    #Full path is the directory where the training data is stored. 
     full_path = os.path.join(storing_path, file_name)
     import pdb; pdb.set_trace()
     if os.path.exists(full_path):

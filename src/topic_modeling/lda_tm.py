@@ -232,7 +232,7 @@ class LDATM(object):
             - 1 if the input files are missing.
             - 0 if the operation failed.
         """
-
+        import pdb; pdb.set_trace()
         # Create the input files for Mallet
         self._create_mallet_input_corpus(df_path)
 

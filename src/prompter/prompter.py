@@ -36,6 +36,8 @@ class Prompter:
             "gpt", {}).get("available_models", {})
         self.OLLAMA_MODELS = self.config.get(
             "ollama", {}).get("available_models", {})
+        
+        import pdb; pdb.set_trace()
 
         self.model_type = model_type
         self.context = None
@@ -267,4 +269,13 @@ class Prompter:
         if use_context:
             self.context = cached_data["inputs"]["context"]
 
+            # ESTO ES NUEVO 
+        if "<think>" in result:
+            # print in green that "thinking" model is used
+            #print(f"{Fore.GREEN}<think> in reponse:{Style.RESET_ALL} {result}")
+            result = result.split("</think>")[-1].strip()
+            #print(f"{Fore.RED}this is what was kept:{Style.RESET_ALL} {result}")
+
+
         return result, logprobs
+    
