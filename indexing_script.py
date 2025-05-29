@@ -12,6 +12,8 @@ def main(search_mode, weight, nprobe:int=10):
     parser.add_argument('--k', required=True,type=int, help='Path to folder with the questions')
     parser.add_argument('--bilingual', required=True,type=str)
     parser.add_argument('--model', required=True,type=str)
+    parser.add_argument('--lang1', required=True,type=str)
+    parser.add_argument('--lang2', required=True,type=str)
 
 
     args = parser.parse_args()
@@ -21,9 +23,10 @@ def main(search_mode, weight, nprobe:int=10):
     question_folder = pathlib.Path(args.question_folder)
     k = args.k
     model = args.model
+    lang1 = args.lang1
+    lang2 = args.lang2
 
     bilingual = args.bilingual == 'bilingual'
-
     mod_name = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2' #'sentence-transformers/LaBSE'
 
     suffix = os.path.basename(mallet_path)
@@ -32,11 +35,13 @@ def main(search_mode, weight, nprobe:int=10):
             "match": search_mode,
             "embedding_size": 384,
             "min_clusters": 8,
-            "top_k_hits": 10,
+            "k": k,
             "batch_size": 32, #Baja batch size si es necesario por limitación de la GPU
             "thr": '0.01',
             "top_k": 10,
-            'storage_path': f'/export/usuarios_ml4ds/ammesa/Data/4_indexed_data/{suffix}'
+            'storage_path': f'/export/usuarios_ml4ds/ammesa/Data/4_indexed_data/{suffix}',
+            'lang1' : lang1,
+            'lang2' : lang2
         }
 
     i = Indexer(file_path, mallet_path, mod_name, config)
@@ -46,20 +51,16 @@ def main(search_mode, weight, nprobe:int=10):
     r = Retriever(file_path, mallet_path, mod_name, question_folder, config)
     r._logger.info(f'Running experiment: {search_mode} with weight: {weight}')
     r.retrieval_loop(bilingual=bilingual, n_tpcs=k, topic_model=model, weight=weight, evaluation_mode=True)
-
     return
 
 if __name__ == "__main__":
-    
-    search_modes = ["TB_ANN","TB_ENN"]
+
+    search_modes = ["TB_ENN","TB_ANN"]
     weight_options = [True, False]
     for search_mode, weight in product(search_modes, weight_options):
         main(search_mode, weight)
     main('ENN', True)
-    search_modes = ["ANN"]
-    probes=[4,5,6,7,8,9,10]
-    for search_mode in product(search_modes):
-        main(search_mode, True)
+    main('ANN', True)
 
     
 

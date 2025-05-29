@@ -32,24 +32,26 @@ def main():
     
     topic_coherences = np.empty((len(n_topics),1))
     for idx, k in enumerate(n_topics):  #[30,5,10,15,20,50]:
-
+        
+        folder = os.path.join(model_folder, f'n_topics_{k}')
         model = LDATM(
             lang1 = lang,
             lang2 = lang,
-            model_folder = model_folder,
+            model_folder = folder,
             num_topics = k
         )
-        import pdb; pdb.set_trace()
         model.train(path)
-        path_cohr = f'/export/usuarios_ml4ds/ammesa/LDA_folder/mallet_output/{lang.upper()}/topickeys.txt'
+        path_cohr = os.path.join(folder, f'mallet_output/{lang}/topickeys.txt')
         topic_coherences[idx] = extract_cohr(path_cohr)
 
     k = n_topics[np.argmax(topic_coherences)]
     #automatically save the model with higher coherence
+    folder = os.path.join(model_folder, f'n_topics_{k}')
+
     final_model = LDATM(
         lang1=lang,
         lang2=lang,
-        model_folder=model_folder,
+        model_folder=folder,
         num_topics=n_topics[np.argmax(topic_coherences)]
     )
     final_model.train(path)

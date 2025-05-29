@@ -82,7 +82,7 @@ class LDATM(object):
         self._doc_topic_thr = doc_topic_thr
         self._token_regexp = token_regexp
         self._thetas_thr = thetas_thr
-        self._model_folder = model_folder
+        self._model_folder = pathlib.Path(model_folder)
         self._mallet_path = pathlib.Path(mallet_path)
 
         if logger:
@@ -101,6 +101,7 @@ class LDATM(object):
 
         # Create folder for the model
         # If a model with the same name already exists, save a copy; then create a new folder
+
         if self._model_folder.exists():
             self._logger.info(
                 f"-- -- Given model folder {self._model_folder} already exists. Saving a copy ..."
@@ -232,7 +233,6 @@ class LDATM(object):
             - 1 if the input files are missing.
             - 0 if the operation failed.
         """
-        import pdb; pdb.set_trace()
         # Create the input files for Mallet
         self._create_mallet_input_corpus(df_path)
 

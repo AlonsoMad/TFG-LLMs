@@ -3,15 +3,15 @@ set -euo pipefail
 
 echo "Starting pipeline execution..."
 
-MODE="bilingual"  # Options: monolingual | bilingual
+MODE="monolingual"  # Options: monolingual | bilingual
 MODEL="zeroshot"  # Options: zeroshot | lda | mallet 
-LANG1="en"
-LANG2="es"
+LANG1="en" # NOT IN CAPS
+LANG2="es" # ONLY LOWERCASE
 GENERATE_DS="NO"
-SOURCE_FILE="en_2025-05-19_segmented_dataset.parquet.gzip" # Recently used: dataset_PubMedQA | dataset_Sports | en_2025-03-03_segm_trans | en_unaligned_dataset_75_per
+SOURCE_FILE="micro_sports_Dataset" # Recently used: dataset_PubMedQA | dataset_Sports | en_2025-03-03_segm_trans | en_unaligned_dataset_75_per
 SOURCE_FILE2="es_2025-05-19_segmented_dataset.parquet.gzip"
-NL_DEST_PATH="/export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data/unaligned_folder"
-QUESTION_FOLDER="/export/usuarios_ml4ds/ammesa/Data/question_bank/sport_questions"
+NL_DEST_PATH="/export/usuarios_ml4ds/ammesa/Data/2_lemmatized_data/sports_folder"
+QUESTION_FOLDER="/export/usuarios_ml4ds/ammesa/Data/question_bank/micro_questions_sports"
 N_TOPICS='6,9,12,15,20,30,50'
 
 echo "Starting NLPIPE execution with: "
@@ -20,6 +20,7 @@ echo "Destination: $NL_DEST_PATH"
 source "/export/usuarios_ml4ds/ammesa/TFG-LLMs/.venv_nlpipe/bin/activate"
 #Eliminar tras la ejecución del experimento
 if [ "$MODE" == "monolingual" ]; then
+    if false; then
     python3 -m src.NLPipe.nlpipe \
         --source_path /export/usuarios_ml4ds/ammesa/Data/1_segmented_data/sports_folder/$SOURCE_FILE \
         --source $SOURCE_FILE\
@@ -28,20 +29,38 @@ if [ "$MODE" == "monolingual" ]; then
         --lang en \
 
     echo "Sucessful execution"
+    fi
     # --- STEP 2: Activate virtual environment ---
     echo "Activating virtual environment for model training..."
     deactivate
-    source "/export/usuarios_ml4ds/ammesa/TFG-LLMs/.venv_mallet/bin/activate"
-    echo "Training monolingual LDA model..."
-    MALLET_FOLDER="/export/usuarios_ml4ds/ammesa/LDA_folder/$SOURCE_FILE"
-    python3 -m train_LDA \
-        --input_path $NL_DEST_PATH \
-        --mallet_folder $MALLET_FOLDER \
-        --num_topics $N_TOPICS \
-        --lang $LANG1
-    echo "Mallet files generated!"
-    echo "Starting experimentation process"
-    MALLET_FOLDER="/export/usuarios_ml4ds/ammesa/LDA_folder/$SOURCE_FILE"
+    if [ "$MODEL" == "lda" ];then
+        source "/export/usuarios_ml4ds/ammesa/TFG-LLMs/.venv_lda/bin/activate"
+        echo "Training monolingual LDA model..."
+        MALLET_FOLDER="/export/usuarios_ml4ds/ammesa/LDA_folder/$SOURCE_FILE"
+        python3 -m train_LDA \
+            --input_path $NL_DEST_PATH/$SOURCE_FILE \
+            --mallet_folder $MALLET_FOLDER \
+            --num_topics $N_TOPICS \
+            --lang $LANG1 
+        echo "Mallet files generated!"
+        echo "Starting experimentation process"
+    elif [ "$MODEL" == "zeroshot" ]; then
+        deactivate
+        source "/export/usuarios_ml4ds/ammesa/TFG-LLMs/.venv_zs/bin/activate"
+        echo "Zero-Shot Topic Model selected!"
+        python3 -m train_ZS\
+            --path_folder $NL_DEST_PATH \
+            --source_file $SOURCE_FILE \
+            --num_topics $N_TOPICS \
+            --lang1 $LANG1 \
+            --lang2 $LANG2 \
+            --bilingual $MODE
+
+        MALLET_FOLDER="/export/usuarios_ml4ds/ammesa/ZS_results/$SOURCE_FILE"
+    else
+        echo "Invalid option"
+        exit 1
+    fi
 elif [ "$MODE" == "bilingual" ]; then
     echo "Processing english files!"
     python3 -m src.NLPipe.nlpipe \
@@ -67,7 +86,8 @@ elif [ "$MODE" == "bilingual" ]; then
             --source_file $SOURCE_FILE \
             --num_topics $N_TOPICS \
             --lang1 $LANG1 \
-            --lang2 $LANG2 
+            --lang2 $LANG2 \
+            --bilingual $MODE
 
         MALLET_FOLDER="/export/usuarios_ml4ds/ammesa/ZS_results/$SOURCE_FILE"
 
@@ -93,8 +113,6 @@ else
     echo "Error: Invalid mode specified: $MODE"
     exit 1
 fi
-
-if false; then
 echo "Sucessful execution"
 # --- STEP 2: Activate virtual environment ---
 echo "Activating virtual environment for model training..."
@@ -110,5 +128,6 @@ python3 -m indexing_script \
     --question_folder $QUESTION_FOLDER \
     --k "$K" \
     --bilingual $MODE \
-    --model $MODEL
-fi
+    --model $MODEL \
+    --lang1 $LANG1 \
+    --lang2 $LANG2 

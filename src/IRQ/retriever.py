@@ -16,6 +16,58 @@ from scipy.ndimage import uniform_filter1d
 import re
 from src.IRQ.indexer import *
 
+def process_row(row_tuple, search_mode, corpus_embeddings, raw_data, thrs=0, weight=False, n_tpcs=30, logger=None):
+    """Process a single row from the dataframe in parallel."""
+    id_row, row = row_tuple
+    results = []
+    query_times = []
+    
+    # Handle theta and top_k based on n_tpcs
+    if n_tpcs != 30:
+        row_theta = raw_data[raw_data.doc_id == row.doc_id].thetas.values[0]
+        row_top_k = raw_data[raw_data.doc_id == row.doc_id].top_k.values[0]
+    
+    # Get queries from row
+    queries = row.subqueries  # Assuming subqueries is already a list
+    
+    # Get theta_query based on n_tpcs
+    if n_tpcs == 30:
+        theta_query = ast.literal_eval(row.top_k)
+    else:
+        theta_query = row_top_k
+
+    # Process each query
+    for query in queries:
+        start_time = time.time()
+        
+        if search_mode == 'ENN':
+            # Exact nearest neighbors search
+            results_query = exact_nearest_neighbors(query, corpus_embeddings, raw_data)
+        elif search_mode == 'ANN':
+            # Approximate nearest neighbors search
+            faiss_path = os.path.join(path_mode, 'faiss_index_ANN_EN.index')
+            faiss_index = faiss.read_index(str(faiss_path))
+            results_query = approximate_nearest_neighbors(query, faiss_index, raw_data["doc_id"].tolist())
+        elif search_mode == 'TB_ENN':
+            # Topic-based exact search
+            results_query = topic_based_exact_search(query, theta_query, corpus_embeddings, raw_data, thrs, do_weighting=weight)
+        elif search_mode == 'TB_ANN':
+            # Topic-based approximate search
+            results_query = topic_based_approximate_search(query, theta_query, thrs, do_weighting=weight)
+        else:
+            results_query = None
+            
+        query_time = time.time() - start_time
+        results.append(results_query)
+        query_times.append(query_time)
+        
+        if logger:
+            logger.info(f"{search_mode}: {query_time:.2f}s")
+    
+    return id_row, results, np.average(query_times), row_theta if n_tpcs != 30 else None, row_top_k if n_tpcs != 30 else None
+
+
+
 class Retriever(NLPoperator):
     '''
     Does the retrieving of the documents upong recieving a query

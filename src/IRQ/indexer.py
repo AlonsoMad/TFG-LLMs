@@ -15,6 +15,8 @@ from kneed import KneeLocator
 from tabulate import tabulate
 from scipy.ndimage import uniform_filter1d
 import re
+from functools import partial
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class NLPoperator:
     '''
@@ -183,7 +185,6 @@ class Indexer(NLPoperator):
         #Obtain parameters
         embedding_size = self.config['embedding_size']
         min_clusters = self.config['min_clusters']
-        top_k_hits = self.config['top_k_hits']
         top_k = self.config['top_k']
         batch_size = self.config['batch_size']
         thr = self.config['thr']
@@ -200,7 +201,6 @@ class Indexer(NLPoperator):
         path_model = self.model_path
         suffix = os.path.basename(self.model_path)
         path_save = os.path.join(self.saving_path, suffix, f'{self.config['match']}')
-        import pdb; pdb.set_trace()
         os.makedirs(path_save, exist_ok=True)
         self.saving_path = path_save
         #Indexing loop and case switch
@@ -226,8 +226,14 @@ class Indexer(NLPoperator):
                     raw = raw[raw["lang_group"] == LANG].copy()
                     raw['thetas'] = list(thetas)
             else:
-                thetas_path = os.path.join(path_model, 'mallet_output', 'EN','thetas.npz')
-                thetas = sparse.load_npz(thetas_path).toarray()
+                if topic_model == 'lda':
+                #thetas_path = os.path.join(path_model, 'mallet_output', self.config['lang1'] ,'thetas.npz')
+                    thetas_path = os.path.join(path_model, f'n_topics_{self.config['k']}','mallet_output', self.config['lang1'] ,'thetas.npz')
+                    thetas = sparse.load_npz(thetas_path).toarray()
+                else: 
+                    thetas_path = os.path.join(path_model, f'n_topics_{self.config['k']}','ZS_output','thetas.npy')
+                    thetas = np.load(thetas_path)
+
 
                 raw['thetas'] = list(thetas)
 
@@ -275,7 +281,8 @@ class Indexer(NLPoperator):
                 quantizer = faiss.IndexFlatIP(embedding_size)
                 faiss_index = faiss.IndexIVFFlat(quantizer, embedding_size, n_clusters, faiss.METRIC_INNER_PRODUCT)
                 faiss_index.train(corpus_embeddings)
-                faiss_index.nprobe = nprobe
+                if nprobe is not None:
+                    faiss_index.nprobe = nprobe
                 faiss_index.add(corpus_embeddings)
                 faiss.write_index(faiss_index,  os.path.join(self.saving_path, f"faiss_index_{self.config['match']}_{LANG}.index"))
 
@@ -396,7 +403,7 @@ class Retriever(NLPoperator):
         self.raw = None
         self.weight = False
         self.final_thrs = None
-        self.path_mode = os.path.join(self.storage_path, self.search_mode.upper())
+        self.path_mode = os.path.join(self.storage_path, self.search_mode)
         self.queries = None
         return
     
@@ -439,37 +446,52 @@ class Retriever(NLPoperator):
                 self.raw = pd.read_parquet(self.file_path)
 
         else:
-            lang = 'EN' 
-            import pdb;pdb.set_trace()
-            self._logger.info(f'Reading thetas of language {lang}')
+            if topic_model == 'lda':
+                lang = self.config['lang1'] 
+                self._logger.info(f'Reading thetas of language {lang}')
 
-            thetas_path = os.path.join(self.model_path,'mallet_output', 'EN',f'thetas.npz')
-            thetas = sparse.load_npz(thetas_path).toarray()
-            self.thetas = thetas
+                thetas_path = os.path.join(self.model_path,f'n_topics_{self.config['k']}','mallet_output', self.config['lang1'],f'thetas.npz')
+                thetas = sparse.load_npz(thetas_path).toarray()
+                self.thetas = thetas
 
-            self._logger.info(f'Reading embeddings')
+                self._logger.info(f'Reading embeddings')
 
-            suffix = os.path.basename(self.model_path)
+                suffix = os.path.basename(self.model_path)
 
-            path_em = os.path.join(self.indexer.saving_path,suffix,f'{self.config['match']}' ,'corpus_embeddings.npy')
-            path_em = re.sub(r'(\/[^\/]+)\1$', r'\1', path_em)
-            self.corpus_embeddings = np.load(path_em)
+                path_em = os.path.join(self.indexer.saving_path,suffix,f'{self.config['match']}' ,'corpus_embeddings.npy')
+                path_em = re.sub(r'(\/[^\/]+)\1$', r'\1', path_em)
+                path_em = re.sub(r'(\/[^\/]+\/[^\/]+)(\1)', r'\1', path_em)
+                self.corpus_embeddings = np.load(path_em)
 
-            self._logger.info(f'Reading raw docs')
-            self.raw = pd.read_parquet(self.file_path)
+                self._logger.info(f'Reading raw docs')
+                self.raw = pd.read_parquet(self.file_path)
 
-            if 'doc_id' not in self.raw.columns:
-                if 'id_preproc' not in self.raw.columns:
-                    self.raw['doc_id'] = self.raw.index
-                else:
-                    self.raw['doc_id'] = self.raw['id_preproc']
+                if 'doc_id' not in self.raw.columns:
+                    if 'id_preproc' not in self.raw.columns:
+                        self.raw['doc_id'] = self.raw.index
+                    else:
+                        self.raw['doc_id'] = self.raw['id_preproc']
+            elif topic_model == 'zeroshot':
+                
+                thetas_path = os.path.join(self.model_path,f'n_topics_{self.config['k']}','ZS_output','thetas.npy')
+                self.thetas = np.load(thetas_path)
+
+                self._logger.info(f'Reading embeddings')
+
+                path_em = os.path.join(self.indexer.saving_path,f'{self.config['match']}' ,'corpus_embeddings.npy')
+                path_em = re.sub(r'([^/]+)/\1', r'\1', path_em)
+                self.corpus_embeddings = np.load(path_em)
+
+                self._logger.info(f'Reading raw docs')
+                self.raw = pd.read_parquet(self.file_path)
+            
         return
     
     def exact_nearest_neighbors(self, query, faiss_index, corpus_embeddings, raw):
         #raw_en["thetas"] = list(thetas_en)
         # TODO: No utilizas los indices de faiss. Ya que indexas, usa el índice
         time_start = time.time()
-        query_embedding = self.model.encode([query], normalize_embeddings=True)
+        query_embedding = self.model.encode([query], normalize_embeddings=True)[0]
         distances, indices = faiss_index.search(np.expand_dims(query_embedding, axis=0), self.config['top_k'])
         time_end = time.time()
         timelapse = time_end - time_start
@@ -528,13 +550,15 @@ class Retriever(NLPoperator):
         time_start = time.time()
         query_embedding = self.model.encode([query], normalize_embeddings=True)[0]
         results = []
+        suffix = os.path.basename(self.model_path)
+        path_save = os.path.join(self.saving_path, suffix)
         for topic, weight in theta_query:
             if thr is not None:
                 thr = list(thr)
             thrs = thr[topic] if thr is not None else 0
             if weight > thrs:
-                index_path = os.path.join(self.saving_path, f'TB_ANN/index_TB_ANN_{topic}' , f"faiss_index_topic_{topic}_EN.index")
-                doc_ids_path = os.path.join(self.saving_path, f'TB_ANN/index_TB_ANN_{topic}' , f"doc_ids_topic_{topic}_EN.npy")
+                index_path = os.path.join(path_save, f'TB_ANN/index_TB_ANN_{topic}' , f"faiss_index_topic_{topic}_EN.index")
+                doc_ids_path = os.path.join(path_save, f'TB_ANN/index_TB_ANN_{topic}' , f"doc_ids_topic_{topic}_EN.npy")
                 if os.path.exists(index_path) and os.path.exists(doc_ids_path):
                     index = faiss.read_index(str(index_path))
                     doc_ids = np.load(doc_ids_path, allow_pickle=True)
@@ -575,71 +599,159 @@ class Retriever(NLPoperator):
             suffix = 'faiss_index_ENN_EN.index'
             self.nprobe=None
 
-        import pdb; pdb.set_trace()
+        
         if os.path.exists(os.path.join(self.path_mode, suffix)):
             res = True
 
         return res
 
-    def _process_single_row(self, id_row, row, n_tpcs, thrs, weight):
-
-        doc_id = row["doc_id"]
-
-        if n_tpcs != 30:
-            row[f"theta_{n_tpcs}"] = self.raw[self.raw.doc_id == doc_id].thetas.values[0]
-            row[f"top_k_{n_tpcs}"] = self.raw[self.raw.doc_id == doc_id].top_k.values[0]
-
-        queries = row["subqueries"]
-
-        if n_tpcs == 30:
-            theta_query = ast.literal_eval(row["top_k"])
+    def process_single_row(self, id_row, row, n_tpcs, thrs, weight):
+        """Process a single row from the dataframe."""
+        results = []
+        query_times = []
+        
+        # Debug output
+        self._logger.debug(f"Processing row {id_row}")
+        
+        # Handle theta and top_k based on n_tpcs
+        # Use class attribute self.raw instead of passing raw_data
+        matching_rows = self.raw[self.raw.doc_id == row.doc_id]
+        if len(matching_rows) > 0:
+            row_theta = matching_rows.thetas.values[0]
+            row_top_k = matching_rows.top_k.values[0]
         else:
-            theta_query = row[f"top_k_{n_tpcs}"]
+            self._logger.warning(f"No matching doc_id found for {row.doc_id}")
+            return id_row, [], 0, None, None
+        
+        # Get queries from row
+        #queries = row.subqueries  # Assuming subqueries is already a list
+        
+        # Get theta_query based on n_tpcs
 
-        results_1 = []
-        time_1 = []
-
-        for query in queries:
+        theta_query = row_top_k
+        query_parsed = self.clean_and_parse_subq(row['subqueries'])
+        
+        # Process each query
+        for query in query_parsed:
+            
             if self.search_mode == 'ENN':
-                r1, t1 = self.exact_nearest_neighbors(query, self.corpus_embeddings, self.raw)
+                base_name = os.path.basename(self.path_mode)
+                if base_name.lower() == "enn":
+                    path = os.path.join(os.path.dirname(self.path_mode), "ENN")
+                faiss_path = os.path.join(path, 'faiss_index_ENN_EN.index')
+                faiss_index = faiss.read_index(str(faiss_path))
+                r1, t1 = self.exact_nearest_neighbors(query, faiss_index,self.corpus_embeddings, raw=self.raw)
             elif self.search_mode == 'ANN':
-                faiss_path = os.path.join(self.path_mode, 'faiss_index_ANN_EN.index')
+                base_name = os.path.basename(self.path_mode)
+                if base_name.lower() == "ann":
+                    path = os.path.join(os.path.dirname(self.path_mode), "ANN")
+                faiss_path = os.path.join(path, 'faiss_index_ANN_EN.index')
                 faiss_index = faiss.read_index(str(faiss_path))
                 r1, t1 = self.approximate_nearest_neighbors(query, faiss_index, self.raw["doc_id"].tolist())
             elif self.search_mode == 'TB_ENN':
                 r1, t1 = self.topic_based_exact_search(query, theta_query, self.corpus_embeddings, self.raw, thrs, do_weighting=weight)
             elif self.search_mode == 'TB_ANN':
                 r1, t1 = self.topic_based_approximate_search(query, theta_query, thrs, do_weighting=weight)
-
-            results_1.append(r1)
-            time_1.append(t1)
+            else:
+                r1, t1 = None, 0
+                
+            results.append(r1)
+            query_times.append(t1)
+            
+            # Log time
             self._logger.info(f"{self.search_mode}: {t1:.2f}s")
+        
+        theta_value = row_theta if n_tpcs != 30 else None
+        top_k_value = row_top_k if n_tpcs != 30 else None
+        
+        return id_row, results, np.average(query_times), theta_value, top_k_value
 
-        row["results"] = results_1
-        row["time"] = float(np.average(time_1))
-
-        return id_row, row
-    
-    
-    def run_parallel_search(self, df_q, n_tpcs, thrs, weight):
-        ctx = get_context("spawn")  # safer for multiprocessing in class context
-
-        tasks = [
-            (i, row.to_dict(), n_tpcs, thrs, weight)
-            for i, row in df_q.iterrows()
-        ]
-
-        results = {}
-        with ctx.Pool() as pool:
-            for result in tqdm(pool.imap_unordered(lambda args: self._process_single_row(*args), tasks), total=len(tasks)):
-                idx, updated_row = result
-                for key, val in updated_row.items():
-                    df_q.at[idx, key] = val
-
+    def parallelized_search(self, df_q, n_tpcs=30, thrs=0, weight=False, save_thr='', path_queries=''):
+        """Thread-based parallelized version of the search function."""
+        start_time = time.time()
+        self._logger.info(f"Starting parallelized search with {n_tpcs} topics using threads...")
+        
+        # Make a copy of the dataframe to avoid race conditions
+        df_q_copy = df_q.copy()
+        
+        # Get total number of rows for progress tracking
+        total_rows = len(df_q_copy)
+        
+        # Determine number of threads to use (adjust based on your specific workload)
+        # For I/O bound tasks, you can use more threads than CPU cores
+        max_workers = min(32, total_rows, os.cpu_count() / 2)
+        self._logger.info(f"Using ThreadPoolExecutor with {max_workers} workers")
+        
+        # Create a progress bar for visual feedback
+        pbar = tqdm(total=total_rows, desc="Processing rows")
+        
+        # Using ThreadPoolExecutor instead of ProcessPool to avoid serialization issues
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all tasks to the executor
+            future_to_row = {
+                executor.submit(self.process_single_row, id_row, row, n_tpcs, thrs, weight): (id_row, row)
+                for id_row, row in df_q_copy.iterrows()
+            }
+            
+            # Process results as they complete
+            for future in as_completed(future_to_row):
+                try:
+                    id_row, results, avg_time, row_theta, row_top_k = future.result()
+                    
+                    # Update results in the original dataframe
+                    df_q.at[id_row, "results"] = results
+                    df_q.at[id_row, "time"] = avg_time
+                    
+                    # Update theta and top_k if n_tpcs != 30
+                    if n_tpcs != 30 and row_theta is not None and row_top_k is not None:
+                        df_q.at[id_row, f"theta_{n_tpcs}"] = row_theta
+                        df_q.at[id_row, f"top_k_{n_tpcs}"] = row_top_k
+                    
+                    # Update progress bar
+                    pbar.update(1)
+                    
+                except Exception as exc:
+                    # Get the row information for debugging
+                    id_row, row = future_to_row[future]
+                    self._logger.error(f"Row {id_row} generated an exception: {exc}")
+                    # Continue processing other rows
+        
+        # Close progress bar
+        pbar.close()
+        
+        # Save results
+        if save_thr == '':
+            save_thr = 0
+        path_save = os.path.join(self.storage_path, 'res')
+        os.makedirs(path_save, exist_ok=True)
+        
+        result_file = os.path.join(path_save, path_queries.replace(".xlsx", f"_results_model_{n_tpcs}_tpc_{save_thr}_thr.parquet"))
+        df_q.to_parquet(result_file)
+        
+        self._logger.info('Post-processing & saving')
+        
+        # Convert all result lists to individual rows in one step
+        columns_to_explode = ["results"]
+        df_q = df_q.explode(columns_to_explode, ignore_index=True)
+        
+        total_time = time.time() - start_time
+        self._logger.info(f"Total processing time: {total_time:.2f}s")
+        
         return df_q
 
+    def clean_and_parse_subq(self, subquery_str):
+        try:
+            fixed_str = subquery_str.replace('\n', ',')
+            subquery_list = ast.literal_eval(fixed_str)
+            return [s.strip() for s in subquery_list]
+        except Exception as e:
+            print(f"Error parsing: {subquery_str}\nError: {e}")
+            return []
+
     def retrieval_loop(self, bilingual: bool, n_tpcs : int, topic_model:str , weight : bool = False,
-                       evaluation_mode:bool=False, question_df: pd.DataFrame = None, nprobe:int=None):
+                       evaluation_mode:bool=False, question_df: pd.DataFrame = None, nprobe:int=None,
+                       parallel:bool=True):
+        self._logger.info('Entering the retrieval loop!')
         self.nprobe = nprobe
         self.weight = weight
          #Check if indexing has been done
@@ -660,7 +772,6 @@ class Retriever(NLPoperator):
                 df_q = question_df
             else:
                 df_q = pd.read_excel(os.path.join(self.question_path, path_queries))
-
 
             #TODO: Solo para el entreno
             if not bilingual and "id" in df_q.columns:
@@ -683,7 +794,17 @@ class Retriever(NLPoperator):
 
             #self.raw['doc_id'] = self.raw['id_preproc']
             self.raw["top_k"] = self.raw["thetas"].apply(lambda x: self.get_doc_top_tpcs(x, topn=int(thetas.shape[1] / 3)))
-            df_q = df_q[df_q['doc_id'].isin(self.raw['doc_id'])]
+
+            if 'doc_id' not in self.raw.columns:
+                self.raw['doc_id'] = self.raw['id_preproc']
+            
+            
+            if 'raw_text' not in df_q.columns:
+                df_q['raw_text'] = df_q['full_doc']
+            
+            if len(df_q) != len(self.raw):
+                df_q = df_q[df_q['doc_id'].isin(self.raw['doc_id'])]
+
             # Calculate threshold dynamically
             thrs_ = self.indexer.dynamic_thresholds(thetas, poly_degree=3, smoothing_window=5)
             if "llama" in path_queries:
@@ -698,51 +819,72 @@ class Retriever(NLPoperator):
                 # initialize columns to store results
                 for key_results in ["results"]:
                     df_q[key_results] = None
-
-
-                for id_row, row in tqdm(df_q.iterrows(), total=df_q.shape[0]):
-                    if n_tpcs != 30:
-                        #doc_id = row.doc_id if isinstance(row.doc_id, str) else  
-                        if id_row == 44:
-                            import pdb; pdb.set_trace()
+                
+                
+                if parallel:
+                    df_q = self.parallelized_search(
+                        df_q, 
+                        n_tpcs=n_tpcs, 
+                        thrs=thrs, 
+                        weight=weight, 
+                        save_thr=save_thr, 
+                        path_queries=path_queries
+                    )
+                else:
+                    for id_row, row in tqdm(df_q.iterrows(), total=df_q.shape[0]):
+                        #if n_tpcs != 30:
+                            
                         row[f"theta_{n_tpcs}"] = self.raw[self.raw.doc_id == row.doc_id].thetas.values[0]
                         row[f"top_k_{n_tpcs}"] = self.raw[self.raw.doc_id == row.doc_id].top_k.values[0]
-                    
-                    processed_rows += 1
-                    print(100*processed_rows/len(df_q))
-                    queries = row.subqueries#queries = ast.literal_eval(row.subqueries)
-                    
-                    if n_tpcs == 30:
-                        theta_query = ast.literal_eval(row.top_k)
-                    else:
+                        
+                        processed_rows += 1
+                        print(100*processed_rows/len(df_q))
+                        queries = row.subqueries#queries = ast.literal_eval(row.subqueries)
+                        #if n_tpcs == 30:
+                        #   theta_query = ast.literal_eval(row[f"top_k_{n_tpcs}"])
+                        #else:
                         theta_query = row[f"top_k_{n_tpcs}"]
 
-                    results_1 = []
-                    
-                    time_1 = []
+                        results_1 = []
+                        
+                        time_1 = []
 
-                    for query in queries:
-                        if self.search_mode == 'ENN':
-                            r1, t1 = self.exact_nearest_neighbors(query, self.corpus_embeddings, self.raw)
-                        elif self.search_mode == 'ANN':
-                            faiss_path = os.path.join(self.path_mode, 'faiss_index_ANN_EN.index')
-                            faiss_index = faiss.read_index(str(faiss_path))
-                            r1, t1 = self.approximate_nearest_neighbors(query, faiss_index, self.raw["doc_id"].tolist())
-                        elif self.search_mode == 'TB_ENN':
-                            r1, t1 =  self.topic_based_exact_search(query, theta_query, self.corpus_embeddings, self.raw, thrs, do_weighting=weight)
-                        elif self.search_mode == 'TB_ANN':
-                            r1, t1 = self.topic_based_approximate_search(query, theta_query, thrs, do_weighting=weight)
+                        
+                        query_parsed = self.clean_and_parse_subq(row['subqueries'])
 
-                        results_1.append(r1)
-                        time_1.append(t1)
-                        # print comparison of times
-                        self._logger.info(f"{self.search_mode}: {t1:.2f}s")
-                    
+                        for query in query_parsed:
 
-                    df_q.at[id_row, "results"] = results_1
+                            if self.search_mode == 'ENN':
+                                base_name = os.path.basename(self.path_mode)
+                                if base_name.lower() == "enn":
+                                    path = os.path.join(os.path.dirname(self.path_mode), "ENN")
+                                faiss_path = os.path.join(path, 'faiss_index_ENN_EN.index')
+                                faiss_index = faiss.read_index(str(faiss_path))
+                                r1, t1 = self.exact_nearest_neighbors(query, faiss_index,self.corpus_embeddings, raw=self.raw)
+                                
+                            elif self.search_mode == 'ANN':
+                                base_name = os.path.basename(self.path_mode)
+                                if base_name.lower() == "ann":
+                                    path = os.path.join(os.path.dirname(self.path_mode), "ANN")
+                                faiss_path = os.path.join(path, 'faiss_index_ANN_EN.index')
+                                faiss_index = faiss.read_index(str(faiss_path))
+                                r1, t1 = self.approximate_nearest_neighbors(query, faiss_index, self.raw["doc_id"].tolist())
+                            elif self.search_mode == 'TB_ENN':
+                                r1, t1 =  self.topic_based_exact_search(query, theta_query, self.corpus_embeddings, self.raw, thrs, do_weighting=weight)
+                            elif self.search_mode == 'TB_ANN':
+                                r1, t1 = self.topic_based_approximate_search(query, theta_query, thrs, do_weighting=weight)
 
-                    df_q.at[id_row, "time"] = np.average(time_1)
 
+                            results_1.append(r1)
+                            time_1.append(t1)
+                            # print comparison of times
+                            self._logger.info(f"{self.search_mode}: {t1:.2f}s")
+                        
+
+                        df_q.at[id_row, "results"] = results_1
+
+                        df_q.at[id_row, "time"] = np.average(time_1)
+                
                 if save_thr == '':
                     save_thr = 0
                 path_save = os.path.join(self.storage_path, 'res')
@@ -757,12 +899,15 @@ class Retriever(NLPoperator):
                 def combine_results(row):
                     doc_ids = set()
                     for col in columns_to_explode:
+
                         try:
                             content = ast.literal_eval(row[col]) if isinstance(row[col], str) else row[col]
                         except:
                             content = row[col]
                         if isinstance(content, list):
                             doc_ids.update(doc["doc_id"] for doc in content)
+                        elif isinstance(content, dict):
+                            doc_ids.add(content['doc_id'])
                     return list(doc_ids)
 
                 df_q["all_results"] = df_q[columns_to_explode].apply(combine_results, axis=1)
@@ -797,7 +942,6 @@ class Retriever(NLPoperator):
                 self.output_df = df_q_eval
 
                 #Puedo comentarlo para funcionalidad final
-                #import pdb; pdb.set_trace()
                 if evaluation_mode:
                     self.evaluation()
 
@@ -823,11 +967,12 @@ class Retriever(NLPoperator):
         return len(retrieved_docs & relevant_docs) / len(relevant_docs)
     
     def id_in_list(self, row, k):
-        return 1 if row["relevant_docs"][0] in row["all_results"][:k] else 0
+        return 1 if set(row["relevant_docs"]) in row["all_results"][:k] else 0
     
     def calibrated_hit_at_k(self, row, k):
-        retrieved_docs = row[f"all_results"][:k] 
-        relevant_doc = row["relevant_docs"][0]
+        retrieved_docs = row[f"all_results"][:k]
+        relevant_doc = set(row["relevant_docs"])
+
         if relevant_doc in retrieved_docs:
             rank = retrieved_docs.index(relevant_doc) + 1  
             return 1 / rank  
@@ -836,9 +981,9 @@ class Retriever(NLPoperator):
 
 
     def multiple_mean_reciprocal_rank_at_k(self, row, k):
+
         retrieved_docs = row[f"all_results"][:k]
         relevant_docs = set(row["relevant_docs"])
-
         ranks = [i + 1 for i, doc in enumerate(retrieved_docs) if doc in relevant_docs]
 
         if not ranks:
@@ -897,37 +1042,21 @@ class Retriever(NLPoperator):
             'ndcg',
             'hit',
             'rank_hit'
-        ]
-
-        method_mapping = {
-            "1": "ENN",
-            "2": "ANN",
-            "3_weighted": "TB-ENN-W",
-            "3_unweighted": "TB-ENN",
-            "4_weighted": "TB-ANN-W",
-            "4_unweighted": "TB-ANN",
-            "time_1": "ENN",
-            "time_2": "ANN",
-            "time_3_weighted": "TB-ENN-W",
-            "time_3_unweighted": "TB-ENN",
-            "time_4_weighted": "TB-ANN-W",
-            "time_4_unweighted": "TB-ANN",
-        }
+        ] 
 
         df_aux['relevant_docs'] = df_aux['relevant_docs'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+        df_aux['all_results'] = df_aux['all_results'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+        df_aux['all_results'] = df_aux['all_results'].apply(lambda x: int(x) if isinstance(x, (np.integer, float)) and not pd.isna(x) else x)
 
 
-        #import pdb; pdb.set_trace()
         self.output_df = (
             df_aux.groupby('question')
             .agg({
                 'doc_id': lambda x: list(x)[0],
-                #'full_doc': lambda x: list(x)[0],
-                #'passage': lambda x: list(x)[0],
                 'raw_text': lambda x: list(x)[0],
                 'subqueries': lambda x: list(x)[0],
                 'all_results': lambda x: list(x),
-                'relevant_docs': lambda x: list(x)[0],
+                'relevant_docs': lambda x: list(x),
                 'all_results_content': lambda x: list(x),
                 'time': lambda x: list(x)[0]
             })
@@ -935,6 +1064,7 @@ class Retriever(NLPoperator):
         )
 
         relevant_docs = self.output_df.get('relevant_docs')
+
 
         #ZAPATA ASQUEROSA ELIMINAR SI POSIBLE
         if (
@@ -953,8 +1083,7 @@ class Retriever(NLPoperator):
                 return [mapping_inv.get(id_preproc) for id_preproc in row]
 
             self.output_df['relevant_docs'] = self.output_df['relevant_docs'].apply(map_relevant_docs_to_doc_ids)
-
-            
+           
 
         for k in ks:
             self.output_df[f"mrr_{k}"] = self.output_df.apply(lambda x: self.multiple_mean_reciprocal_rank_at_k(x, k=k), axis=1)

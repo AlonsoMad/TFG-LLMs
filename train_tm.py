@@ -48,13 +48,14 @@ def main():
     n_topics = list(map(int, args.num_topics.split(',')))
 
     topic_coherences = np.empty((len(n_topics),1))
-    out_path = os.path.join('/export/usuarios_ml4ds/ammesa/mallet_folder', src_file)
-    path_cohr = os.path.join(out_path, 'mallet_output', 'topickeys.txt')
+    
 
     print("-- -- Training PolyLingual Topic Model")
     # Train PolyLingual Topic Model
     for idx, k in enumerate(n_topics):  #[30,5,10,15,20,50]:
         # model = LDATM(
+        out_path = os.path.join('/export/usuarios_ml4ds/ammesa/mallet_folder', src_file, f'n_topics_{k}')
+        path_cohr = os.path.join(out_path, 'mallet_output', 'topickeys.txt')
         model = PolylingualTM(
             lang1=lang1.upper(),
             lang2=lang2.upper(),
@@ -74,6 +75,8 @@ def main():
         f.write(str(full_path))
         
     df_coherences.to_csv("coherences.csv", index=False)
+
+    out_path = os.path.join('/export/usuarios_ml4ds/ammesa/mallet_folder', src_file, f'n_topics_{k}')
 
     model = PolylingualTM(
         lang1=lang1.upper(),
