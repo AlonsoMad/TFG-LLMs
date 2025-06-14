@@ -27,13 +27,16 @@ class QueryEngine(NLPoperator):
     Uses LLMs to handle all sorts of queries, in the user-machine interface
     and in the DB-Retriever interface.
     '''
-    def __init__(self, file_path, model_path, model_name, config, q_path):
+    def __init__(self, file_path, model_path, model_name, config, q_path, topic_model, translation):
         super().__init__(file_path, model_path, model_name)
 
         # Config dictionary: to be defined
         default_config={}
         self.config = default_config if config is None else {**default_config, **config}
         self.q_path = q_path
+        self.topic_model = topic_model
+        # Translation specifies whether there's a mirrored copy of docs
+        self.translation = translation
 
         self.indexer=Indexer(file_path=self.file_path,
                              model_path=self.model_path,
@@ -87,7 +90,7 @@ class QueryEngine(NLPoperator):
         '''
         Generates and intializes the prompter for answering
         '''
-        llm_model = "qwen:32b"
+        llm_model = "llama3.3:70b"
         ollama_host = "http://kumo01.tsc.uc3m.es:11434"
 
         prompter = Prompter(
@@ -140,6 +143,9 @@ class QueryEngine(NLPoperator):
         '''
         return
     
+    def parse_questions(self, questions):
+        return
+
     def generate_questions_queries(self, docs: pd.DataFrame):
         '''
         With a pd.Dataframe as input, uses LLMs to generate questions
@@ -153,6 +159,8 @@ class QueryEngine(NLPoperator):
 
             enriched_docs = self.parallel_apply(docs, self.generate_questions, max_workers=20)
             enriched_docs = self.parallel_apply(enriched_docs, self.generate_subqueries, max_workers=20)
+
+            enriched_docs['question'] = enriched_docs['question'].apply(lambda x: x[0].split('\n'))
             docs = enriched_docs
 
         return docs
@@ -187,7 +195,7 @@ class QueryEngine(NLPoperator):
             path_suffix = 'final_results'
             path = os.path.join(f'/export/usuarios_ml4ds/ammesa/mind_folder/{path_suffix}')
             os.makedirs(path, exist_ok=True)
-            full_path = os.path.join(path, 'answered_files.parquet')
+            full_path = os.path.join(path, f'{self.topic_model}_answered_files.parquet')
             if os.path.exists(full_path):
                 df_aux = pd.read_parquet(full_path)
                 df_new = df[~df['question_id'].isin(df_aux['question_id'])]
@@ -234,11 +242,20 @@ class QueryEngine(NLPoperator):
         )
         df_grouped['question_id'] = df_grouped['doc_id']
 
-        import pdb; pdb.set_trace()
         for _, row in tqdm(df_grouped.iterrows(), total=len(df_grouped)):
             try:
                 results = []
 
+                n_top = self.retriever.config['top_k']
+                top_docs = row['all_results'][:n_top]
+                is_lang_en = str(self.retriever.raw[self.retriever.raw['doc_id']==row.doc_id].id_preproc.values[0]).startswith(("EN", "T_EN"))
+
+                if is_lang_en:
+                    raw = self.retriever.raw_o_lang
+                    aux_df = self.retriever.raw_lang
+                else: 
+                    raw = self.retriever.raw_lang
+                    aux_df = self.retriever.raw_o_lang
                 '''
                 results_4_unweighted = row[self.config['match']]
                 flattened_list = [{'doc_id': entry['doc_id'], 'score': entry['score']} for subarray in results_4_unweighted for entry in subarray]
@@ -246,8 +263,7 @@ class QueryEngine(NLPoperator):
                 x
                 ']]
                 '''
-                n_top = self.retriever.config['top_k']
-                top_docs = row['all_results'][:n_top]
+
                 for top_doc in top_docs:
                 
                     # ---------------------------------------------------------#
@@ -265,18 +281,58 @@ class QueryEngine(NLPoperator):
                     answer_s, _ = self.prompter.prompt(question=formatted_template)
                     print("Answer S:", answer_s)
                     
+
                     id_prep = aux_df[aux_df['doc_id'] == top_doc]['id_preproc'].values[0]
-                    if not id_prep.startswith('T_'):
-                        id_prep = f'T_{id_prep}'
-                    elif id_prep.startswith('T_EN'):
-                        id_prep = id_prep.replace('T_EN', 'EN', 1)
-                    elif id_prep.startswith('T_ES'):
-                        id_prep = id_prep.replace('T_ES', 'ES', 1)
+
+                    if self.translation:
+                        if not id_prep.startswith('T_'):
+                            new_id_prep = f'T_{id_prep}'
+                        elif id_prep.startswith('T_EN'):
+                            new_id_prep = id_prep.replace('T_EN', 'EN', 1)
+                        elif id_prep.startswith('T_ES'):
+                            new_id_prep = id_prep.replace('T_ES', 'ES', 1)
+                    else: 
+                        first_raw_id = raw.iloc[0]['id_preproc']
+                        match = re.match(r'([A-Z]+)_(\d+)_\d+', first_raw_id)
+                        if match:
+                            _, docnum_raw = match.groups()
+                            docnum_raw = int(docnum_raw)
+                        else:
+                            raise ValueError(f"Invalid format in raw id_preproc: {first_raw_id}")
+
+                        match = re.match(r'([A-Z]+)_(\d+)_(\d+)', id_prep)
+
+                        if match:
+                            language_prep, docnum_prep, paragraph_prep = match.groups()
+                        else:
+                            raise ValueError(f"Invalid format in id_prep: {id_prep}")
+
+
+                        language_switched = 'EN' if language_prep == 'ES' else 'ES'
+
+                        # 4. Adjust DOCNUM
+                        if language_switched == 'EN':
+                            new_docnum = (docnum_prep[1:].lstrip('0') or '0') if len(docnum_prep) > 1 else '0'
+                        else:
+                            new_docnum = int(docnum_prep) + docnum_raw
+
+                        if int(new_docnum) < 0:
+                            raise ValueError("Resulting DOCNUM is negative after subtraction.")
+
+                        new_id_prep = f"{language_switched}_{new_docnum}_{paragraph_prep}"
+                        print(f"Mapped id_prep: {new_id_prep}")
+
+
                     ######################################
                     # GENERATE ANSWER IN TARGET LANGUAGE #
                     ######################################
-                    passage_t = raw[raw.id_preproc == id_prep].raw_text.iloc[0]
-                    full_doc_t = raw[raw.id_preproc == id_prep].raw_text.iloc[0]
+                    try:
+                        passage_t = raw[raw.id_preproc == new_id_prep].raw_text.iloc[0]
+                        full_doc_t = raw[raw.id_preproc == new_id_prep].raw_text.iloc[0]
+                    except IndexError:
+                        passage_t = 'There is no information in the database to answer'
+                        full_doc_t = 'There is no information in the database to answer'
+
                     
 
                     ##############################################
@@ -348,17 +404,86 @@ class QueryEngine(NLPoperator):
                         "reason": reason
                     })
                     
-
                 # Save checkpoint
                 checkpoint_df = pd.DataFrame(results)
                 # Cambiar esto, no debe guardar en checkpoint
                 self.save_results(checkpoint_df, 'final_results')
-                    #import pdb; pdb.set_trace()
+                    
             except Exception as e:
                 print(f"Error with question {row.question_id}: {e}")
                 continue
 
 
+
+        return
+
+    def disc_det(self, df: pd.DataFrame):
+        '''
+        Uses an LLM to check whether two answers are contradictory or not
+        also checks for absence of an answer
+        '''
+        # This function is not used in the current implementation
+                #-----------------------------------------------------#
+        # 4. DISCREPANCY DETECTION
+        # ------------------------------------------------------#
+        _4_INSTRUCTIONS_PATH = "/export/usuarios_ml4ds/ammesa/TFG-LLMs/src/mind/templates/discrepancy_detection.txt"
+        with open(_4_INSTRUCTIONS_PATH, 'r') as file: template = file.read()
+        results = []
+        for _, row in tqdm(df.iterrows(), total=len(df)):
+
+            answer_s = row.answer_s
+            answer_t = row.answer_t
+            passage_s = row.passage_s
+            passage_t = row.passage_t
+
+            question = template.format(question=row.question, answer_1=answer_s, answer_2=answer_t)
+            
+            discrepancy, _ = self.prompter.prompt(question=question)
+            if "cannot answer the question given the context" not in answer_t:
+            
+                label, reason = None, None
+                lines = discrepancy.splitlines()
+                for line in lines:
+                    if line.startswith("DISCREPANCY_TYPE:"):
+                        label = line.split("DISCREPANCY_TYPE:")[1].strip()
+                    elif line.startswith("REASON:"):
+                        reason = line.split("REASON:")[1].strip()
+                
+
+                if label is None or reason is None:
+                    try:
+                        discrepancy_split = discrepancy.split("\n")
+                        reason = discrepancy_split[0].strip("\n").strip("REASON:").strip()
+                        label = discrepancy_split[1].strip("\n").strip("DISCREPANCY_TYPE:").strip()
+                    except:
+                        label = discrepancy
+                        reason = ""
+                print("Discrepancy:", label)
+                
+            else:
+                if answer_t == "I cannot answer as the passage contains personal opinions.":
+                    reason = "I cannot answer as the passage contains personal opinions."
+                    label = "NOT_ENOUGH_INFO"
+                else:
+                    reason = "I cannot answer given the context."
+                    label = "NOT_ENOUGH_INFO"
+                
+                    
+            results.append({
+                "question_id": row.question_id,
+                "question": row.question,
+                "passage_s": passage_s,
+                "answer_s": answer_s,
+                "passage_t": passage_t,
+                "answer_t": answer_t,
+                "discrepancy": label,
+                "reason": reason,
+                "model" : self.prompter.model_type
+            })
+
+        # Save checkpoint
+        checkpoint_df = pd.DataFrame(results)
+        self.save_results(checkpoint_df, 'final_results')
 
         return
 
@@ -369,14 +494,15 @@ class QueryEngine(NLPoperator):
         '''
         return
 
-    def answer_loop(self,input_df:pd.DataFrame, topics:int):
+    def answer_loop(self,input_df:pd.DataFrame, topics:int, parallel:bool):
         '''
         Integrates previous functionalities in an answer loop
         '''
         #Recuerda que self raw de retriever debe ser el df en otro idioma
 
         self.retriever.retrieval_loop(bilingual=True, n_tpcs=topics,
-                                       topic_model='mallet',weight=True, question_df=input_df)
+                                       topic_model=self.topic_model,weight=True, question_df=input_df,
+                                       parallel=parallel)
         
         answer_df = self.retriever.output_df
         self.save_results(answer_df, 'answers')

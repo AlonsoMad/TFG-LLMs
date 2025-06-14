@@ -37,7 +37,6 @@ class Prompter:
         self.OLLAMA_MODELS = self.config.get(
             "ollama", {}).get("available_models", {})
         
-        import pdb; pdb.set_trace()
 
         self.model_type = model_type
         self.context = None

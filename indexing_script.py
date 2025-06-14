@@ -50,7 +50,7 @@ def main(search_mode, weight, nprobe:int=10):
     config['thr'] = 'var'
     r = Retriever(file_path, mallet_path, mod_name, question_folder, config)
     r._logger.info(f'Running experiment: {search_mode} with weight: {weight}')
-    r.retrieval_loop(bilingual=bilingual, n_tpcs=k, topic_model=model, weight=weight, evaluation_mode=True)
+    r.retrieval_loop(bilingual=bilingual, n_tpcs=k, topic_model=model, weight=weight, evaluation_mode=True, parallel=False)
     return
 
 if __name__ == "__main__":

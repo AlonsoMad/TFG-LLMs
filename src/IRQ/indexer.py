@@ -211,15 +211,17 @@ class Indexer(NLPoperator):
             #thetas_path = os.path.join(path_model, 'mallet_output', f'thetas_{LANG}.npz')
             if bilingual:
                 if topic_model == 'zeroshot':   
-                    thetas_path = os.path.join(path_model, f'ZS_output', 'thetas.npy')
+                    thetas_path = os.path.join(path_model, 'ZS_output', 'thetas.npy')
+                    thetas_path = re.sub(r'([^/]+)/(?:\1)(/|$)', r'\1\2', thetas_path)
                     thetas = np.load(thetas_path)
 
                     raw['thetas'] = list(thetas)
                     raw["lang_group"] = raw["id_preproc"].str.extract(r"(EN|ES|T_EN|T_ES)")[0].map(lang_groups)
-                    raw = raw[raw["lang_group"] == LANG].copy()
+                    #raw = raw[raw["lang_group"] == LANG].copy()
 
                 elif topic_model == 'mallet':
                     thetas_path = os.path.join(path_model, 'mallet_output', f'thetas_{LANG}.npz')
+                    thetas_path = re.sub(r'([^/]+)/\1', r'\1', thetas_path)
                     thetas = sparse.load_npz(thetas_path).toarray()
 
                     raw["lang_group"] = raw["id_preproc"].str.extract(r"(EN|ES|T_EN|T_ES)")[0].map(lang_groups)
@@ -418,6 +420,8 @@ class Retriever(NLPoperator):
             if topic_model == 'zeroshot':
                 os.path.join(self.model_path, 'ZS_output', 'thetas.npy')
                 thetas_path = os.path.join(self.model_path, 'ZS_output', 'thetas.npy')
+                thetas_path = re.sub(r'([^/]+)/\1', r'\1', thetas_path)
+
                 self.thetas = np.load(thetas_path)
 
                 self._logger.info(f'Reading embeddings')
@@ -431,8 +435,12 @@ class Retriever(NLPoperator):
                 
             elif topic_model == 'mallet':
                 thetas_path = os.path.join(self.model_path, 'mallet_output', f'thetas_EN.npz')
+                thetas_path = re.sub(r'([^/]+)/\1', r'\1', thetas_path)
+
                 thetas_en = sparse.load_npz(thetas_path).toarray()
                 thetas_path = os.path.join(self.model_path, 'mallet_output', f'thetas_ES.npz')
+                thetas_path = re.sub(r'([^/]+)/\1', r'\1', thetas_path)
+
                 thetas_es = sparse.load_npz(thetas_path).toarray()
                 self.thetas = np.vstack([thetas_en, thetas_es])
 
@@ -473,7 +481,7 @@ class Retriever(NLPoperator):
                         self.raw['doc_id'] = self.raw['id_preproc']
             elif topic_model == 'zeroshot':
                 
-                thetas_path = os.path.join(self.model_path,f'n_topics_{self.config['k']}','ZS_output','thetas.npy')
+                thetas_path = os.path.join(self.model_path,f'n_topics_{self.config['k']}','scoutput','thetas.npy')
                 self.thetas = np.load(thetas_path)
 
                 self._logger.info(f'Reading embeddings')
@@ -740,13 +748,17 @@ class Retriever(NLPoperator):
         return df_q
 
     def clean_and_parse_subq(self, subquery_str):
-        try:
-            fixed_str = subquery_str.replace('\n', ',')
-            subquery_list = ast.literal_eval(fixed_str)
-            return [s.strip() for s in subquery_list]
-        except Exception as e:
-            print(f"Error parsing: {subquery_str}\nError: {e}")
-            return []
+        if isinstance(subquery_str, str):
+            try:
+                fixed_str = subquery_str.replace('\n', ',')
+                subquery_list = ast.literal_eval(fixed_str)
+                return [s.strip() for s in subquery_list]
+            except Exception as e:
+                print(f"Error parsing: {subquery_str}\nError: {e}")
+                return subquery_str
+        else:
+            return subquery_str
+        
 
     def retrieval_loop(self, bilingual: bool, n_tpcs : int, topic_model:str , weight : bool = False,
                        evaluation_mode:bool=False, question_df: pd.DataFrame = None, nprobe:int=None,
@@ -789,8 +801,10 @@ class Retriever(NLPoperator):
             if bilingual:
                 self.raw["lang_group"] = self.raw["id_preproc"].str.extract(r"(EN|ES|T_EN|T_ES)")[0].map(lang_groups)
                 self.raw_lang = self.raw[self.raw["lang_group"] == LANG].copy()
+                
+                #raw_o_lang just means the raw files in the OTHER language
                 self.raw_o_lang = self.raw[self.raw["lang_group"] != LANG].copy()
-                self.raw = self.raw_lang
+                #self.raw = self.raw_lang
 
             #self.raw['doc_id'] = self.raw['id_preproc']
             self.raw["top_k"] = self.raw["thetas"].apply(lambda x: self.get_doc_top_tpcs(x, topn=int(thetas.shape[1] / 3)))
@@ -802,7 +816,7 @@ class Retriever(NLPoperator):
             if 'raw_text' not in df_q.columns:
                 df_q['raw_text'] = df_q['full_doc']
             
-            if len(df_q) != len(self.raw):
+            if (len(df_q) != len(self.raw)) and not bilingual:
                 df_q = df_q[df_q['doc_id'].isin(self.raw['doc_id'])]
 
             # Calculate threshold dynamically
@@ -837,8 +851,6 @@ class Retriever(NLPoperator):
                         row[f"theta_{n_tpcs}"] = self.raw[self.raw.doc_id == row.doc_id].thetas.values[0]
                         row[f"top_k_{n_tpcs}"] = self.raw[self.raw.doc_id == row.doc_id].top_k.values[0]
                         
-                        processed_rows += 1
-                        print(100*processed_rows/len(df_q))
                         queries = row.subqueries#queries = ast.literal_eval(row.subqueries)
                         #if n_tpcs == 30:
                         #   theta_query = ast.literal_eval(row[f"top_k_{n_tpcs}"])
