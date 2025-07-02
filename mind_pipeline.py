@@ -15,7 +15,7 @@ from src.utils.utils import clear_screen, print_doc
 class CLI:
     def __init__(self):
         self.topics = []
-        self.topic_model = 'zeroshot'
+        self.topic_model = 'mallet'
         self.model_path = self._resolve_model_path()
         self._load_topics()
         self._load_docs()

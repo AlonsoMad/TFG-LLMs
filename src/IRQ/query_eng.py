@@ -326,6 +326,9 @@ class QueryEngine(NLPoperator):
                     ######################################
                     # GENERATE ANSWER IN TARGET LANGUAGE #
                     ######################################
+
+                    import pdb; pdb.set_trace()
+
                     try:
                         passage_t = raw[raw.id_preproc == new_id_prep].raw_text.iloc[0]
                         full_doc_t = raw[raw.id_preproc == new_id_prep].raw_text.iloc[0]
