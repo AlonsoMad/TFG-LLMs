@@ -9,8 +9,8 @@ COPY requirements_web.txt .
 RUN pip install --no-cache-dir -r requirements_web.txt 
 
 # Copy the rest of the application code into the container
-COPY ./app ./app
-COPY ./backend ./backend 
+ADD ./app ./app
+ADD ./backend ./backend 
 
 # Expose the Flask default port
 EXPOSE 5000
