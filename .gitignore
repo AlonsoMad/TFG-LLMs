@@ -25,7 +25,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
+db_data/
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -60,7 +60,8 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-
+db_data
+Data
 # Flask stuff:
 instance/
 .webassets-cache

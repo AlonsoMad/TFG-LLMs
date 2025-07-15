@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  backend:
+    build: ./backend
+    network_mode: "host"
+    volumes:
+      - ./backend:/app
+      - ./db_data:/db_data
+
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      ./.env
+  frontend:
+    build: ./app
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend

@@ -273,7 +273,7 @@ def main():
         checkpoint_df.to_parquet(os.path.join(args.path_save, path_queries))
         return
     
-    llm_model = "qwen:32b"
+    llm_model = "llama3.3:70b"
     
     prompter = Prompter(
         model_type=llm_model, 

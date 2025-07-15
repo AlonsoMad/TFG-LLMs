@@ -91,7 +91,7 @@ class QueryEngine(NLPoperator):
         Generates and intializes the prompter for answering
         '''
         llm_model = "llama3.3:70b"
-        ollama_host = "http://kumo01.tsc.uc3m.es:11434"
+        ollama_host = "http://kumo02.tsc.uc3m.es:11434"
 
         prompter = Prompter(
             model_type=llm_model) 
@@ -327,8 +327,8 @@ class QueryEngine(NLPoperator):
                     # GENERATE ANSWER IN TARGET LANGUAGE #
                     ######################################
 
-                    import pdb; pdb.set_trace()
-
+                    if row.doc_id in top_docs:
+                        import pdb; pdb.set_trace()
                     try:
                         passage_t = raw[raw.id_preproc == new_id_prep].raw_text.iloc[0]
                         full_doc_t = raw[raw.id_preproc == new_id_prep].raw_text.iloc[0]
@@ -385,6 +385,10 @@ class QueryEngine(NLPoperator):
                                 label = discrepancy
                                 reason = ""
                         print("Discrepancy:", label)
+
+                        if label == 'CULTURAL_DISCREPANCY':
+                            import pdb; pdb.set_trace()
+
                         
                     else:
                         if answer_t == "I cannot answer as the passage contains personal opinions.":
