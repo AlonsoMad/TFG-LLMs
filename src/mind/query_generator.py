@@ -6,8 +6,8 @@
 # SEARCH QUERY GENERATION
 import logging
 import pathlib
-from src.prompter.prompter import Prompter
-from src.utils.utils import init_logger
+from prompter.prompter import Prompter
+from utils.utils import init_logger
 
 class QueryGenerator():
     def __init__(

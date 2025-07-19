@@ -11,14 +11,14 @@ from scipy import sparse, stats
 import scikit_posthocs as sp
 from sentence_transformers import SentenceTransformer, util
 from kneed import KneeLocator
-from src.prompter.prompter import Prompter
+from prompter.prompter import Prompter
 from tabulate import tabulate
 from scipy.ndimage import uniform_filter1d
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .indexer import *
-from src.mind.query_generator import QueryGenerator
-from src.mind.question_generator import QuestionGenerator
+from mind.query_generator import QueryGenerator
+from mind.question_generator import QuestionGenerator
 
 
 

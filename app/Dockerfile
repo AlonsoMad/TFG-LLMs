@@ -1,14 +1,15 @@
-# Use a lightweight Nginx image
-FROM nginx:alpine
+FROM python:3.12.3
 
 WORKDIR /app
 
-# Remove default static files
-RUN rm -rf /usr/share/nginx/html/*
+COPY . .
 
-# Copy your static files into Nginx's web directory
-COPY . /usr/share/nginx/html
+ENV PYTHONPATH=/src
 
-# Expose port 80
+RUN pip install --no-cache-dir fastapi uvicorn pydantic
+
+RUN pip install --no-cache-dir -r requirements_web.txt
+
 EXPOSE 80
-# Start Nginx server
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]

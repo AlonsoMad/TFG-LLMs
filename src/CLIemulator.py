@@ -7,16 +7,25 @@ import tqdm
 import sys
 import dotenv
 import time
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
-from src.IRQ.indexer import *
-from src.IRQ.query_eng import *
-from src.mind.query_generator import QueryGenerator
-from src.utils.utils import clear_screen, print_doc
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+from IRQ.indexer import *
+from IRQ.query_eng import *
+from mind.query_generator import QueryGenerator
+from utils.utils import clear_screen, print_doc
+
+dotenv.load_dotenv()
+
 
 class CLI:
-    def __init__(self):
+    def __init__(self,
+                 dataset_name: str):
+        
         self.topics = []
         self.topic_model = 'mallet'
+        self.dataset_name = dataset_name
+        self.dataset_path = None
+        self.q_engine = None
+
         self.model_path = self._resolve_model_path()
         self._load_topics()
         self._load_docs()
@@ -28,12 +37,14 @@ class CLI:
                                     'Exit menu' ]
                     }
 
-        self.q_engine = None
-    
+
+        print('Mind was initialized!')
+
     def _resolve_model_path(self):
-        # Just abstract it once, it may change in the future
-        dataset_name = "en_2025_06_05_matched"
-        return os.path.join('/export/usuarios_ml4ds/ammesa/mallet_folder',dataset_name,'n_topics_50/mallet_output')
+
+        dataset_name = self.dataset_name
+        path_to_model = os.getenv('TM_PATH', '/Data/mallet_folder')
+        return os.path.join(path_to_model,dataset_name,'n_topics_50/mallet_output')
 
     def _load_topics(self):
         '''
@@ -77,9 +88,11 @@ class CLI:
 
 
     def _load_docs(self):
+
+        dataset_path = os.getenv("DATASET_PATH", "/Data/3_joined_data")
+        self.dataset_path = os.path.join(dataset_path, self.dataset_name, 'polylingual_df')
         try:
-            file_path = '/export/usuarios_ml4ds/ammesa/Data/3_joined_data/en_2025_06_05_matched/polylingual_df'
-            dataset = pd.read_parquet(file_path)
+            dataset = pd.read_parquet(self.dataset_path)
             self.dataset = dataset
         except FileNotFoundError:
             self.dataset=[]
@@ -90,6 +103,8 @@ class CLI:
         '''
         Initializes the query generator and handler
         '''
+        self.index_path = os.getenv("INDEX_PATH", "/Data/4_indexed_data")
+
         config={  
             "match": 'TB_ENN',
             "embedding_size": 384,
@@ -98,12 +113,12 @@ class CLI:
             "batch_size": 32,
             "thr": '0.01',
             "top_k": 10,
-            'storage_path': '/export/usuarios_ml4ds/ammesa/Data/4_indexed_data'
+            'storage_path': self.index_path
         }
 
         qg = QueryEngine(
-            file_path='/export/usuarios_ml4ds/ammesa/Data/3_joined_data/en_2025_06_05_matched/polylingual_df',
-            model_path='/export/usuarios_ml4ds/ammesa/mallet_folder/en_2025_06_05_matched/n_topics_50/mallet_output',
+            file_path=self.dataset_path,
+            model_path=self.model_path,
             model_name='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',
             config=config,
             q_path=q_path,
@@ -282,9 +297,3 @@ class CLI:
 
         return
 
-if __name__ == '__main__':
-    cli = CLI()
-    try:
-        cli.main_loop()
-    except KeyboardInterrupt:
-        print('\nExiting')

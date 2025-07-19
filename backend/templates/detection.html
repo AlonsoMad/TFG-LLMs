@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Detection{% endblock %}
+
+{% block content %}
+<h1>MIND Cultural discrepancy detection</h1>
+<div class="jumbotron" style="min-height: 50vh; overflow-y: auto; padding: 2rem;">
+    {% if status in ['idle', 'initializing'] %}
+        <p class="lead">MIND is currently idle. Start a session by selecting a dataset:</p>
+        
+        {% if ds_tuple and ds_tuple[0] %}
+            <ul class="list-group dataset-list">
+                {% for dataset in ds_tuple[1] %}
+                    <li class="list-group-item dataset-item hover-text-primary">
+                        {{ dataset }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="lead">No datasets found or error loading datasets.</p>
+        {% endif %}
+
+    {% elif status == 'initialized' %}
+        <p class="lead">MIND is initialized.</p>
+
+    {% elif status == 'running' %}
+        <p class="lead">MIND is currently running...</p>
+        <p>Inspect the available topics or start analysis.</p>
+
+    {% endif %}
+</div>
+
+<ul class="nav nav-pills mb-4 d-flex justify-content-between w-100" id="myTab" role="tablist">
+    <li class="nav-item ">
+        <a class="nav-link mode-selectors active " href="#input" data-toggle="tab">Explore topics</a>
+    </li>
+    <li class="nav-item ">
+        <a class="nav-link mode-selectors active" href="#output" data-toggle="tab">Analyze</a>
+    </li>
+</ul>
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+  <!-- Navigation Pills -->
+  <ul class="nav nav-pills mb-2 mb-md-0" id="myTab" role="tablist">
+      <li class="nav-item">
+          <a class="nav-link control active" data-toggle="tab">Previous</a>
+      </li>
+      <li class="nav-item">
+          <a class="nav-link control" data-toggle="tab">Next</a>
+      </li>
+      <li class="nav-item">
+          <a class="nav-link control" data-toggle="tab">Return</a>
+      </li>
+  </ul>
+
+  <!-- Inline Form -->
+  <form id="mind-number-form" class="form-inline d-flex align-items-center gap-2">
+    <label for="numberInput" class="mr-2 mb-0"></label>
+    <!-- Max input = ntopics -->
+    <input type="number" class="form-control mr-2" id="numberInput" placeholder="0" min="0" style="width: 100px;">
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+</div>
+
+<script>
+    console.log("✅ Script block is rendering.");
+</script>
+
+<script src="http://localhost:3000/static/js/mind.js" ></script>
+<!-- <script>
+  function fetchMindStatus() {
+    fetch("/detection")
+      .then((res) => res.json())
+      .then((data) => {
+        document.getElementById("mind-status").textContent = data.state || "unknown";
+
+        // Optionally flash messages or update UI
+        if (data.state === "completed") {
+          console.log("✅ MIND finished processing.");
+        }
+      })
+      .catch((err) => {
+        document.getElementById("mind-status").textContent = "error";
+        console.error("Error fetching MIND status:", err);
+      });
+  }
+
+  // Poll every 5 seconds
+  setInterval(fetchMindStatus, 5000);
+  fetchMindStatus();  // initial load
+</script> -->
+{% if csrf_token %}
+<script>
+    document.cookie = "csrf_token={{ csrf_token }}";
+</script>
+{% endif %}
+<style>
+.hover-text-primary:hover {
+    color: #007bff;
+    cursor: pointer;
+}
+</style>
+
+
+{% endblock %}
+
+

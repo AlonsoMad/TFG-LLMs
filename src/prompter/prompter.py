@@ -12,7 +12,7 @@ import requests
 from ollama import Client # type: ignore
 from openai import OpenAI # type: ignore
 
-from src.utils.utils import init_logger, load_yaml_config_file
+from utils.utils import init_logger, load_yaml_config_file
 
 memory = Memory(location='cache', verbose=0)
 
