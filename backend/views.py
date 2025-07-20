@@ -42,9 +42,7 @@ def datasets():
         else:
             flash(f"No datasets found in {dataset_path}.", "warning")
         return render_template("datasets.html", user=current_user, datasets=dataset_list, names=datasets_name, shape=shapes)
-        # except Exception as e:
-        #     flash(f"Error accessing dataset path: {str(e)}", "danger")
-        # return render_template("datasets.html", user=current_user, datasets=[])
+
 
 
 
@@ -64,6 +62,22 @@ def dataset_selection():
     
     return jsonify({'message': 'Dataset received', 'dataset': dataset})
 
+@views.route('/topic_selection', methods=['GET', 'POST'])
+@login_required
+def topic_selection():
+    data = request.get_json()
+    topic_id = data.get('topic_id')
+    mind_api_url = f"{os.getenv('MIND_API_URL', 'http://mind:93')}"
+
+    if not topic_id:
+        flash('No topic ID provided', 'danger')
+        return jsonify({'error': 'No topic ID provided'}), 400
+
+    print("Received topic ID:", topic_id)
+    response = requests.get(f'{mind_api_url}/topic_documents', params={'topic_id': topic_id})
+    
+    return jsonify(response.json())
+
 @views.route('/mode_selection', methods=['GET', 'POST'])
 @login_required
 def mode_selection():
@@ -80,14 +94,14 @@ def mode_selection():
     status_data = status_resp.json()
     status = status_data.get("state", "unknown")
     
-    if status in ["initialized"]:
-    
-        if mode == "explore":
+    if status in ["initialized", 'topic_exploration']:
+        print(f"Current MIND status: {status}")
+        if mode == "Explore topics":
             response = requests.get(f'{mind_api_url}/explore')
             return jsonify(response.json())
         
-        elif mode == "analyze":
-            response = requests.post(f'{mind_api_url}/run')
+        elif mode == "Analyze contradictions":
+            response = requests.post(f'{mind_api_url}/explore')
             return jsonify(response.json())
         
         else:
@@ -103,6 +117,7 @@ def detection():
     mind_api_url = f"{os.getenv('MIND_API_URL', 'http://mind:93')}"
     dataset_path = os.getenv("DATASET_PATH", "/Data/3_joined_data")
     status = "idle"
+    mind_info = {}
 
     try:
         data = request.get_json()
@@ -137,8 +152,17 @@ def detection():
             flash("MIND is initializing, please wait...", "warning")
         elif status == "initialized":
             ds_tuple = load_datasets(dataset_path)
-
             flash("MIND already initialized.", "success")
+        elif status == "topic_exploration":
+            ds_tuple = ( [], [], [])
+            try:
+                explore_resp = requests.get(f'{mind_api_url}/explore')
+                if explore_resp.status_code == 200:
+                    mind_info = explore_resp.json().get("topic_information", {})
+                else:
+                    flash("Failed to explore topics.", "warning")
+            except Exception as e:
+                flash(f"Error contacting MIND: {str(e)}", "danger")
         elif status == "running":
 
             flash("MIND is currently processing.", "info")
@@ -151,7 +175,7 @@ def detection():
     except requests.RequestException as e:
         flash(f"Error connecting to MIND: {e}", "danger")
 
-    return render_template("detection.html", user=current_user, status=status, ds_tuple=ds_tuple)
+    return render_template("detection.html", user=current_user, status=status, ds_tuple=ds_tuple, mind_info=mind_info)
 
 
 @views.route('/profile', methods=['GET', 'POST'])

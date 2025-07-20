@@ -196,6 +196,28 @@ class CLI:
         self.q_engine.answer_loop(df_aux, topic_number,parallel)
 
         return
+    
+    def web_topic_overview(self) -> list[dict]:
+        '''
+        Returns the topics and their most representative documents
+        '''
+        sample_topics = [' '.join(topic.split()[:3]) for topic in self.topics]
+        topic_df = pd.DataFrame(
+            sample_topics,
+            index=range(len(self.topics)),
+            columns=['Key words']
+        )
+        return topic_df.reset_index(names='Topic #').to_dict(orient='records')
+    
+    def topic_documents_overview(self, topic_id: str, n_samp: int = 20) -> list[dict]:
+        topic_id = int(topic_id)
+        subset = self.thetas_en[:, topic_id]
+        top_n_idx_unsorted = np.argpartition(-subset, n_samp)[:n_samp]
+        top_n_idx_sorted = top_n_idx_unsorted[np.argsort(-subset[top_n_idx_unsorted])]
+        documents = self.dataset[self.dataset['doc_id'].isin(top_n_idx_sorted)]
+        
+        documents = documents[['raw_text']].dropna()
+        return documents.to_dict(orient="records")       
 
     def select(self,option:str):
         '''

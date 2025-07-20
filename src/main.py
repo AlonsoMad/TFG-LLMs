@@ -45,6 +45,7 @@ class MindStatus(str, Enum):
     running = "running"
     completed = "completed"
     failed = "failed"
+    topic_exploration = "topic_exploration"
 
 class InitData(BaseModel):
     dataset: str
@@ -82,25 +83,40 @@ def initialize(data: InitData):
 
     current_status["last_updated"] = datetime.now()
     return {"message": 'MIND initialized successfully.'}
-    # except Exception as e:
-    #     print(f"Error during initialization: {e}")
-    #     current_status["state"] = MindStatus.failed
-    #     current_status["last_updated"] = datetime.now()
-    #     return {"error": str(e)}, 500
+
+@mind.get("/topic_documents")
+def get_topic_documents(topic_id: str):
+    '''
+    Get documents related to a specific topic.
+    '''
+    print(f"Fetching documents for topic ID: {topic_id}")
+    if current_status["state"] not in [MindStatus.initialized, MindStatus.topic_exploration]:
+        raise HTTPException(status_code=400, detail="MIND not initialized or not in topic exploration state.")
+    
+    try:
+        topic_documents = cli.topic_documents_overview(topic_id)
+        return {"topic_documents": topic_documents}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching topic documents: {str(e)}")
 
 @mind.get("/explore")
 def explore():
     '''
     Explore the topics in the MIND dataset.
     '''
-    if current_status["state"] != MindStatus.initialized:
+    if current_status["state"] not in [MindStatus.initialized, MindStatus.topic_exploration]:
+        print("MIND not initialized or not in topic exploration state.")
         raise HTTPException(status_code=400, detail="MIND not initialized. Please initialize first.")
-
+    
+    #Obtain topic information from the CLI
     try:
-        topics = cli.get_topics()
-        return {"topics": topics}
+        topic_information = cli.web_topic_overview()
+        current_status["state"] = MindStatus.topic_exploration
+        current_status["last_updated"] = datetime.now()
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error exploring topics: {str(e)}")
+    return {"topic_information": topic_information}
 
 @mind.post("/run")
 def run_mind(request: Request):

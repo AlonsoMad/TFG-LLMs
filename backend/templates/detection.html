@@ -19,12 +19,54 @@
             <p class="lead">No datasets found or error loading datasets.</p>
         {% endif %}
 
-    {% elif status == 'initialized' %}
-        <p class="lead">MIND is initialized.</p>
+    {% elif status == 'initialized' or status == 'topic_exploration' %}
+        {% if not mind_info %}
+            <p class="lead">MIND is initialized.</p>
+            <p>Inspect the available topics or start analysis.</p>
+        {% else %}
+            <div class="card shadow-sm mb-4" id="topic-list-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Available topics for exploration</h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                    <ul class="list-group list-group-flush">
+                        {% for topic in mind_info %}
+                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong>Topic {{ topic["Topic #"] }}:</strong>
+                                    <span class="text-muted">{{ topic["Key words"] }}</span>
+                                </div>
+                                <!-- Optional action button -->
+                                <button class="btn btn-sm btn-outline-primary topic_button" data-topic-id="{{ topic['Topic #'] }}">Select</button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div class="card shadow-sm mb-4 d-none" id="document-carousel-card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Documents for selected topic</h5>
+                </div>
+                <div class="card-body">
+                    <div id="document-carousel" class="carousel slide" data-ride="carousel">
+                        <div class="carousel-inner" id="carousel-inner">
+                            <!-- JS will populate this -->
+                        </div>
+                        <!-- <a class="carousel-control-prev" href="#document-carousel" role="button" data-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="sr-only">Previous</span>
+                        </a>
+                        <a class="carousel-control-next" href="#document-carousel" role="button" data-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="sr-only">Next</span> -->
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
 
     {% elif status == 'running' %}
         <p class="lead">MIND is currently running...</p>
-        <p>Inspect the available topics or start analysis.</p>
 
     {% endif %}
 </div>
@@ -34,20 +76,20 @@
         <a class="nav-link mode-selectors active " href="#input" data-toggle="tab">Explore topics</a>
     </li>
     <li class="nav-item ">
-        <a class="nav-link mode-selectors active" href="#output" data-toggle="tab">Analyze</a>
+        <a class="nav-link mode-selectors active" href="#output" data-toggle="tab">Analyze contradictions</a>
     </li>
 </ul>
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
   <!-- Navigation Pills -->
   <ul class="nav nav-pills mb-2 mb-md-0" id="myTab" role="tablist">
       <li class="nav-item">
-          <a class="nav-link control active" data-toggle="tab">Previous</a>
+          <a class="nav-link control active" id="prev-doc" data-toggle="tab">Previous</a>
       </li>
       <li class="nav-item">
-          <a class="nav-link control" data-toggle="tab">Next</a>
+          <a class="nav-link control" id="next-doc" data-toggle="tab">Next</a>
       </li>
       <li class="nav-item">
-          <a class="nav-link control" data-toggle="tab">Return</a>
+          <a class="nav-link control" id="return-btn" data-toggle="tab">Return</a>
       </li>
   </ul>
 
