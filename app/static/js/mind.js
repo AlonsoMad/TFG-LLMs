@@ -114,11 +114,28 @@ class MINDInterface {
                 return response.json();
             })
             .then(data => {
-                this.lastInstruction = data.state; 
-                console.log("MIND status retrieved:", this.lastInstruction);
+                this.state = data.state; 
+                console.log("MIND status retrieved:", this.state);
             })
             .catch(error => {
                 console.error("Error fetching MIND status:", error);
+            });
+    }
+
+    fetchInstructions() {
+        return fetch('/get_instruction')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Failed to fetch instructions");
+                }
+                return response.json();
+            })
+            .then(data => {
+                this.lastInstruction = data.instruction; 
+                console.log("Instructions retrieved:", data);
+            })
+            .catch(error => {
+                console.error("Error fetching instructions:", error);
             });
     }
 
@@ -202,14 +219,16 @@ class MINDInterface {
         }, 1000); // Adjust the timeout as needed
     }
 
-    handleTopicClick(topicId) {
+    async handleTopicClick(topicId) {
+        await this.fetchInstructions(); 
         console.log("Selected topic:", topicId);
-        if (this.lastInstruction === 'topic_exploration') {
+        console.log("Last instruction:", this.lastInstruction);
+        if (this.lastInstruction === 'Explore topics') {
             fetch('/topic_selection', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': this.getCSRFToken() // if using Flask-WTF/CSRF
+                    'X-CSRFToken': this.getCSRFToken() 
                 },
                 body: JSON.stringify({ topic_id: topicId })
             })
@@ -220,7 +239,7 @@ class MINDInterface {
             })
             .catch(err => console.error("Topic selection error:", err));
         }
-        else if (this.lastInstruction === 'topic_analysis') {
+        else if (this.lastInstruction === 'Analyze topics') { // Not done yet
             fetch('/analyze_topic', {
                 method: 'POST',
                 headers: {

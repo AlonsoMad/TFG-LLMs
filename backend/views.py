@@ -3,6 +3,8 @@ from flask_login import current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import User
+from enum import Enum
+
 import dotenv
 import os
 import pandas as pd
@@ -14,6 +16,14 @@ from __init__ import db
 
 views = Blueprint('views', __name__)
 dotenv.load_dotenv()
+
+class LastInstruction(str, Enum):
+    idle = "Idle"
+    explore_topics = "Explore topics"
+    analyze_contradictions = "Analyze contradictions"
+
+current_instruction = {"instruction": LastInstruction.idle, "last_updated": None}
+    
 
 @views.route('/')
 # @login_required
@@ -43,8 +53,13 @@ def datasets():
             flash(f"No datasets found in {dataset_path}.", "warning")
         return render_template("datasets.html", user=current_user, datasets=dataset_list, names=datasets_name, shape=shapes)
 
-
-
+@views.get('/get_instruction')
+def get_last_instruction():
+    print("Fetching last instruction:", current_instruction["instruction"])
+    return jsonify({
+        "instruction": current_instruction["instruction"].value, 
+        "last_updated": current_instruction["last_updated"]
+    })
 
 @views.route('/dataset_selection', methods=['POST'])
 @login_required
@@ -97,10 +112,12 @@ def mode_selection():
     if status in ["initialized", 'topic_exploration']:
         print(f"Current MIND status: {status}")
         if mode == "Explore topics":
+            current_instruction["instruction"] = LastInstruction.explore_topics
             response = requests.get(f'{mind_api_url}/explore')
             return jsonify(response.json())
         
         elif mode == "Analyze contradictions":
+            current_instruction["instruction"] = LastInstruction.analyze_contradictions
             response = requests.post(f'{mind_api_url}/explore')
             return jsonify(response.json())
         
