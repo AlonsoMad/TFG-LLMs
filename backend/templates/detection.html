@@ -92,14 +92,13 @@
           <a class="nav-link control" id="return-btn" data-toggle="tab">Return</a>
       </li>
   </ul>
-
-  <!-- Inline Form -->
-  <form id="mind-number-form" class="form-inline d-flex align-items-center gap-2">
+    <form id="mind-number-form" class="form-inline d-flex align-items-center gap-2">
     <label for="numberInput" class="mr-2 mb-0"></label>
     <!-- Max input = ntopics -->
-    <input type="number" class="form-control mr-2" id="numberInput" placeholder="0" min="0" style="width: 100px;">
+    <input type="number" class="form-control mr-2" id="numberInput" name="n_samples" placeholder="0" min="0" style="width: 100px;">
     <button type="submit" class="btn btn-primary">Submit</button>
-  </form>
+    </form>
+
 </div>
 
 <script>
@@ -107,28 +106,7 @@
 </script>
 
 <script src="http://localhost:3000/static/js/mind.js" ></script>
-<!-- <script>
-  function fetchMindStatus() {
-    fetch("/detection")
-      .then((res) => res.json())
-      .then((data) => {
-        document.getElementById("mind-status").textContent = data.state || "unknown";
 
-        // Optionally flash messages or update UI
-        if (data.state === "completed") {
-          console.log("✅ MIND finished processing.");
-        }
-      })
-      .catch((err) => {
-        document.getElementById("mind-status").textContent = "error";
-        console.error("Error fetching MIND status:", err);
-      });
-  }
-
-  // Poll every 5 seconds
-  setInterval(fetchMindStatus, 5000);
-  fetchMindStatus();  // initial load
-</script> -->
 {% if csrf_token %}
 <script>
     document.cookie = "csrf_token={{ csrf_token }}";

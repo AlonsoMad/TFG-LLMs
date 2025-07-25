@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request,flash, jsonify
+from flask import Blueprint, render_template, request,flash, jsonify, session
 from flask_login import current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -93,6 +93,54 @@ def topic_selection():
     
     return jsonify(response.json())
 
+
+@views.route('/analyze_topic', methods=['GET', 'POST'])
+@login_required
+def analyze_topic():
+    '''
+    Stores the selected topic ID in the session for later use.
+    '''
+    data = request.get_json()
+    topic_id = data.get('topic_id')
+
+    if not topic_id:
+        return jsonify({"error": "No topic ID provided"}), 400
+    
+    session['selected_topic'] = topic_id  
+    print(f"Selected topic ID stored in session: {topic_id}")
+    return jsonify({"message": "Topic stored, awaiting sample count."})
+
+@views.route('/submit_analysis', methods=['GET','POST'])
+@login_required
+def submit_analysis():
+    data = request.get_json()
+    topic_id = session.get('selected_topic')
+    n_samples = data.get("n_samples")
+    mind_api_url = os.getenv("MIND_API_URL", "http://mind:93")
+    print(f"Submitting analysis for topic ID: {topic_id} with n_samples: {n_samples}")
+
+    if not topic_id or not n_samples:
+        flash("Missing topic or sample count.", "danger")
+        return jsonify({"error": "Missing topic or sample count."}), 400
+
+    try:
+        response = requests.post(
+            f"{mind_api_url}/run",
+            json={"topic_id": topic_id, "n_samples": int(n_samples)}
+        )
+        if response.ok:
+            flash("Topic analysis started!", "success")
+        else:
+            flash(f"Failed to start analysis: {response.text}", "danger")
+    except Exception as e:
+        flash(f"Error contacting MIND: {str(e)}", "danger")
+
+    # Optional: clear stored topic from session
+    session.pop('selected_topic', None)
+
+    return jsonify({"message": "Sample recieved, starting analysis."})
+
+
 @views.route('/mode_selection', methods=['GET', 'POST'])
 @login_required
 def mode_selection():
@@ -118,7 +166,7 @@ def mode_selection():
         
         elif mode == "Analyze contradictions":
             current_instruction["instruction"] = LastInstruction.analyze_contradictions
-            response = requests.post(f'{mind_api_url}/explore')
+            response = requests.get(f'{mind_api_url}/explore')
             return jsonify(response.json())
         
         else:
@@ -135,6 +183,7 @@ def detection():
     dataset_path = os.getenv("DATASET_PATH", "/Data/3_joined_data")
     status = "idle"
     mind_info = {}
+    ds_tuple = ( [], [], [])
 
     try:
         data = request.get_json()
@@ -165,13 +214,11 @@ def detection():
 
         elif status == "initializing":
 
-            ds_tuple = ( [], [], [])
             flash("MIND is initializing, please wait...", "warning")
         elif status == "initialized":
             ds_tuple = load_datasets(dataset_path)
             flash("MIND already initialized.", "success")
         elif status == "topic_exploration":
-            ds_tuple = ( [], [], [])
             try:
                 explore_resp = requests.get(f'{mind_api_url}/explore')
                 if explore_resp.status_code == 200:

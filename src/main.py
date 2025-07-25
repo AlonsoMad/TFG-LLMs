@@ -118,10 +118,13 @@ def explore():
         raise HTTPException(status_code=500, detail=f"Error exploring topics: {str(e)}")
     return {"topic_information": topic_information}
 
+
 @mind.post("/run")
 def run_mind(request: Request):
     '''
     Run the mind pipeline with the provided request data.
     '''
-    pass
+    print("Running MIND pipeline...")
+    current_status["state"] = MindStatus.running
+    return {"message": "Running MIND pipeline... (this is a placeholder)"}
 

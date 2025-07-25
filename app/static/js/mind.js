@@ -45,15 +45,16 @@ class MINDInterface {
             console.log("Initializing topic buttons");
             this.initTopicButtons();
         }
+        this.form.addEventListener('submit', this.handleFormSubmit.bind(this));
     }
-        initTopicButtons() {
-        this.topicButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const topicId = button.dataset.topicId;
-                this.handleTopicClick(topicId);
-                this.loadTopicDocuments(topicId); 
-            });
+    initTopicButtons() {
+    this.topicButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const topicId = button.dataset.topicId;
+            this.handleTopicClick(topicId);
+            this.loadTopicDocuments(topicId); 
         });
+    });
     }
 
     initCarouselControls() {
@@ -73,15 +74,36 @@ class MINDInterface {
                 $('#document-carousel').carousel('next');
             });
         }
+    }
 
-        // if (returnBtn) {
-        //     returnBtn.addEventListener('click', () => {
-        //         const topicListCard = document.getElementById('topic-list-card');
-        //         const carouselCard = document.getElementById('document-carousel-card');
-        //         topicListCard.classList.toggle('d-none');
-        //         carouselCard.classList.toggle('d-none');
-        //     });
-        // }
+    handleFormSubmit(event) {
+        event.preventDefault(); // Stop default form submission
+
+        const n_samples = this.numberInput.value;
+
+        fetch('/submit_analysis', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': this.getCSRFToken?.() || '', // if needed
+            },
+            body: JSON.stringify({
+                n_samples: parseInt(n_samples, 10)
+            })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to submit analysis");
+            return res.text(); // or .json() depending on your backend
+        })
+        .then(data => {
+            console.log("Analysis submitted:", data);
+            // Optional: Redirect, flash a message, reload UI
+            window.location.reload();
+        })
+        .catch(err => {
+            console.error("Submission error:", err);
+            alert("An error occurred while submitting the analysis.");
+        });
     }
 
     loadTopicDocuments(topicId) {
@@ -239,7 +261,7 @@ class MINDInterface {
             })
             .catch(err => console.error("Topic selection error:", err));
         }
-        else if (this.lastInstruction === 'Analyze topics') { // Not done yet
+        else if (this.lastInstruction === 'Analyze contradictions') { // Not done yet
             fetch('/analyze_topic', {
                 method: 'POST',
                 headers: {
