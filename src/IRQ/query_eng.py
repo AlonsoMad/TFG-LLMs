@@ -8,6 +8,7 @@ import time
 import pandas as pd
 import numpy as np
 from scipy import sparse, stats
+import dotenv
 import scikit_posthocs as sp
 from sentence_transformers import SentenceTransformer, util
 from kneed import KneeLocator
@@ -217,9 +218,13 @@ class QueryEngine(NLPoperator):
 
     
     def give_answer(self, df:pd.DataFrame):
-        _3_INSTRUCTIONS_PATH = "/export/usuarios_ml4ds/ammesa/TFG-LLMs/src/mind/templates/question_answering.txt"
-        _4_INSTRUCTIONS_PATH = "/export/usuarios_ml4ds/ammesa/TFG-LLMs/src/mind/templates/discrepancy_detection.txt"
-        RELEVANCE_PROMPT = "/export/usuarios_ml4ds/ammesa/TFG-LLMs/src/mind/templates/test_relevance.txt"
+        dotenv.load_dotenv()
+
+        path_to_templates = os.getenv("MIND_TEMPLATES_PATH", "/src/mind/templates")
+
+        _3_INSTRUCTIONS_PATH = os.path.join(path_to_templates, 'question_answering.txt') 
+        _4_INSTRUCTIONS_PATH = os.path.join(path_to_templates, 'discrepancy_detection.txt') 
+        RELEVANCE_PROMPT = os.path.join(path_to_templates, 'test_relevance.txt')  
         #Takes automatically the raw texts that were not used to do the initial retrieving
         raw = self.retriever.raw_o_lang
         aux_df = self.retriever.raw_lang

@@ -14,7 +14,7 @@ class QueryGenerator():
         self,
         logger: logging.Logger = None,
         config_path: pathlib.Path = pathlib.Path("config/config.yaml"),
-        instructions_path: pathlib.Path = pathlib.Path("src/mind/templates/query_generation.txt"),
+        instructions_path: pathlib.Path = pathlib.Path("mind/templates/query_generation.txt"),
         model_type: str = "llama3.3:70b",  # you can try other models; you can check available models by doing `ollama list` in the terminal (this only works from kumo01)
     ):
         self._logger = logger if logger else init_logger(config_path, __name__)

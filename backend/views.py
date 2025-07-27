@@ -126,8 +126,9 @@ def submit_analysis():
     try:
         response = requests.post(
             f"{mind_api_url}/run",
-            json={"topic_id": topic_id, "n_samples": int(n_samples)}
+            params={"topic_number": topic_id, "n_sample": int(n_samples)}
         )
+
         if response.ok:
             flash("Topic analysis started!", "success")
         else:

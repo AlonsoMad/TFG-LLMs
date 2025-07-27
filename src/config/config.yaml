@@ -51,9 +51,9 @@ llm:
       "qwen3:32b",
       llama3.3:70b
     }
-    host: http://kumo01.tsc.uc3m.es:11434
+    host: http://kumo02.tsc.uc3m.es:11434
   llama_cpp:
-    host: http://kumo01:11435/v1/chat/completions
+    host: http://kumo02:11435/v1/chat/completions
 
 
 # TODO: Add other config here

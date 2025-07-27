@@ -104,6 +104,9 @@ class MINDInterface {
             console.error("Submission error:", err);
             alert("An error occurred while submitting the analysis.");
         });
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     }
 
     loadTopicDocuments(topicId) {
@@ -203,23 +206,24 @@ class MINDInterface {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': this.getCSRFToken() // if using Flask-WTF/CSRF
+                'X-CSRFToken': this.getCSRFToken?.() || ''
             },
             body: JSON.stringify({ dataset: datasetName })
         })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error("Backend error");
+            // We are not parsing the response, since it may be HTML
+            return res.text(); // or just do nothing
+        })
         .then(data => {
-            console.log("Backend response:", data);
-            // Optionally update UI or notify the user
+            console.log("Backend responded (likely HTML), reloading...");
+            setTimeout(() => {
+                window.location.reload();
+            }, 100); // shorter delay is fine
         })
         .catch(err => console.error("Dataset selection error:", err));
-
-        //wait for the backend to process the dataset selection
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000); // Adjust the timeout as needed
-
     }
+
 
     handleInstruction(instruction) {
         console.log("Selected instruction:", instruction); 

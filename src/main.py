@@ -111,6 +111,7 @@ def explore():
     #Obtain topic information from the CLI
     try:
         topic_information = cli.web_topic_overview()
+        print(topic_information)
         current_status["state"] = MindStatus.topic_exploration
         current_status["last_updated"] = datetime.now()
 
@@ -126,5 +127,13 @@ def run_mind(request: Request):
     '''
     print("Running MIND pipeline...")
     current_status["state"] = MindStatus.running
-    return {"message": "Running MIND pipeline... (this is a placeholder)"}
+    current_status["last_updated"] = datetime.now()
+    topic_n = int(request.query_params.get("topic_number", 0))
+    n_sample = int(request.query_params.get("n_sample", 10))
+
+    
+
+    cli.retrieval(topic_number=topic_n, n_sample=n_sample, parallel=False)
+  
+    return {"message": "Running MIND pipeline..."}
 

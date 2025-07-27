@@ -25,6 +25,7 @@ services:
     #   - ./app:/usr/share/nginx/html
   mind:
     build: ./src
+    user: root
     volumes:
       - ./Data:/Data
     ports:

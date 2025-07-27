@@ -104,6 +104,7 @@ class CLI:
         Initializes the query generator and handler
         '''
         self.index_path = os.getenv("INDEX_PATH", "/Data/4_indexed_data")
+        self.mind_path = os.getenv("OUTPUT_PATH", "/Data/mind_folder")
 
         config={  
             "match": 'TB_ENN',
@@ -173,6 +174,9 @@ class CLI:
         - topic_number: int
             The number associated with the topic of the analyzed documents
         '''
+        #TODO: Handle the paths
+        self.mind_path = os.getenv("OUTPUT_PATH", "/Data/mind_folder")
+
         clear_screen()
         #Obtain docs in which the selected topic is the most representative.
         subset = np.where(self.thetas_en[:, topic_number] == self.thetas_en.max(axis=1))[0]
@@ -181,18 +185,26 @@ class CLI:
         documents = documents.sample(n_sample)
 
         #save that dataframe to generate questions
-        path = f'/export/usuarios_ml4ds/ammesa/mind_folder/question_bank'
-        os.makedirs(path, exist_ok=True)
+        path = os.path.join(self.mind_path, 'question_bank')
 
         if self.q_engine == None:
             self._init_q_en(q_path=path)
         
-        path = os.path.join(path,f'topic_{topic_number}', f'questions_len_{n_sample}')
-        self.q_engine.retriever.update_q_path(path=path)
+        os.chmod(path, 0o777)
+        path_topic= os.path.join(path,f'topic_{topic_number}')
+        os.makedirs(path_topic, exist_ok=True)
+        path_sample = os.path.join(path,f'topic_{topic_number}', f'questions_len_{n_sample}')
+        os.makedirs(path_sample, exist_ok=True)
+
+        print(f'Point A reached')
+        self.q_engine.retriever.update_q_path(path=path_sample)
+
+        print(f'Point B reached')
 
         df_aux = self.q_engine.generate_questions_queries(documents)
+        print(f'Point C reached')
         self.q_engine.save_questions(df_aux, topic_number)
-
+        print(f'Point D reached')
         self.q_engine.answer_loop(df_aux, topic_number,parallel)
 
         return

@@ -70,7 +70,7 @@ class Prompter:
             self._logger.info(f"Using OpenAI API with model: {model_type}")
         elif model_type in self.OLLAMA_MODELS:
             ollama_host = self.config.get("ollama", {}).get(
-                "host", "http://kumo01.tsc.uc3m.es:11434"
+                "host", "http://kumo02.tsc.uc3m.es:11434"
             )
             os.environ['OLLAMA_HOST'] = ollama_host
             self.backend = "ollama"
@@ -84,7 +84,7 @@ class Prompter:
             )
         elif model_type == "llama_cpp":
             self.llama_cpp_host = self.config.get("llama_cpp", {}).get(
-                "host", "http://kumo01:11435/v1/chat/completions"
+                "host", "http://kumo02:11435/v1/chat/completions"
             )
             self.backend = "llama_cpp"
             self._logger.info(
@@ -207,7 +207,7 @@ class Prompter:
         return result, logprobs, context
 
     @staticmethod
-    def _call_llama_cpp_api(template, question, params, llama_cpp_host="http://kumo01:11435/v1/chat/completions"):
+    def _call_llama_cpp_api(template, question, params, llama_cpp_host="http://kumo02:11435/v1/chat/completions"):
         """Handles the llama_cpp API call."""
         payload = {
             "messages": [
