@@ -44,3 +44,5 @@ services:
       - PYTHONUNBUFFERED=1
     env_file:
       ./.env
+
+#now with correct permissions
