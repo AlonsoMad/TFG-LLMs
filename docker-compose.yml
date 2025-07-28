@@ -3,6 +3,7 @@ version: '3.9'
 services:
   backend:
     build: ./backend
+    user: root
     # network_mode: "host"
     ports:
       - "5000:5000"
@@ -27,7 +28,14 @@ services:
     build: ./src
     user: root
     volumes:
-      - ./Data:/Data
+      - type: bind
+        source: ./Data
+        target: /Data
+        bind:
+            propagation: rshared
+
+      - ./Data_old:/Data_old
+    privileged: true
     ports:
       - "93:93"
     depends_on:

@@ -190,16 +190,15 @@ class CLI:
         if self.q_engine == None:
             self._init_q_en(q_path=path)
         
+        os.makedirs(path, exist_ok=True)
         os.chmod(path, 0o777)
         path_topic= os.path.join(path,f'topic_{topic_number}')
         os.makedirs(path_topic, exist_ok=True)
         path_sample = os.path.join(path,f'topic_{topic_number}', f'questions_len_{n_sample}')
         os.makedirs(path_sample, exist_ok=True)
 
-        print(f'Point A reached')
         self.q_engine.retriever.update_q_path(path=path_sample)
 
-        print(f'Point B reached')
 
         df_aux = self.q_engine.generate_questions_queries(documents)
         print(f'Point C reached')

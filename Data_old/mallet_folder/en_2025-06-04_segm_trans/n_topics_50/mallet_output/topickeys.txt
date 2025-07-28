@@ -1,0 +1,150 @@
+0	0.02
+ 0	12741	0.01	british empire britain united colony kingdom island war independence india territory century power islands government rule france treaty east 
+ 1	11666	0.01	barbados isla islas reino británico unido imperio mayo beltane año occidentales caribe festival gobernador grande nombre inglaterra verano antigua 
+1	0.02
+ 0	18477	0.01	battle british army force troop hill militia command cornwallis attack burgoyne howe bunker american lead march north morgan carolina 
+ 1	13245	0.01	carnegie arbitraje unidos estadounidense sistema andrew american arbitration culture importante states americano school united economía industria mundo americana país 
+2	0.02
+ 0	10616	0.01	ireland irish belfast belarus technology city northern council campaign european griffith belarusian local border follow centre country government union 
+ 1	11669	0.01	benjamin harrison rush agua west clima filadelfia mar pie zonas aguas año superficie alto william punto media norte tierra 
+3	0.02
+ 0	9332	0.01	boone charles organization health cornwallis carroll daniel war return time john american kentucky family philadelphia serve maryland land carrollton 
+ 1	11798	0.01	art deco arte estilo forma color parís edificio diseño arquitectura conocido vidrio década grande museo artistas pintura edificios obras 
+4	0.02
+ 0	11418	0.01	washington george american saint national york technology mount gaudens follow include federalism monument john park augustus united hold vernon 
+ 1	15981	0.01	washington años boone padre george virginia murió hijo hijos casa condado muerte edad madre familia esposa daniel nació despué 
+5	0.02
+ 0	9899	0.01	house technology government bicameralism elect blood chamber legislature senate greek upper bloodlette political legislative practice health council bicameral body 
+ 1	10711	0.01	negros black albany colinas york libertad negro sur hills negras griego bosque británicos abedul gobierno escocia libre londres theodoros 
+6	0.02
+ 0	16130	0.01	slave trade atlantic african slavery people barbados european enslave africa century organization africans west health ship caribbean coast island 
+ 1	16609	0.01	continental ejército congreso guerra washington estadounidense american york británicos revolucionaria británico george filadelfia war colonias americana revolutionary septiembre unidos 
+7	0.02
+ 0	11839	0.01	population people country age increase rate united white live census accord city base estimate total region jewish percent immigrant 
+ 1	14100	0.01	población años millone número mayoría tasa personas grande país censo habitante década crecimiento grupo europa alta ciento período blanco 
+8	0.02
+ 0	9926	0.01	map alexandria quarter virginia coin common design gold cartography united mint issue sense original medal program feature time silver 
+ 1	10733	0.01	irlanda mapas dublín rey cartografía mapa armas siglo irlandesa brian cartography irlandés irlandese batalla reino nombre hijo tre ireland 
+9	0.02
+ 0	11651	0.01	century death pinckney technology black language modern period form south people plague ancient culture late accord influence word europe 
+ 1	12246	0.01	libro nombre muerte vida común guinness historia palabra principal punto tragedia fuente cambio término obras publicado conocido popular david 
+10	0.02
+ 0	19925	0.01	washington battle fort british troop attack force lee army americans advance retreat command trenton french lead princeton monmouth regiment 
+ 1	16474	0.01	jackson johnson andrew sur guerra presidente tennessee partido ley john norte cargo estadounidense unión congreso revolution política hombre presidencia 
+11	0.02
+ 0	13295	0.01	albany family york bear father health child organization belgium die mother michelson death marry age son wife city county 
+ 1	19908	0.01	clinton presidente coolidge voto partido candidato elecciones elección republicano bill demócrata elegido vicepresidente campaña calvin senado cargo mandato presidencial 
+12	0.02
+ 0	9865	0.01	united border canada technology cochrane thomas land north river international territory province boundary west nova canadian country coast scotia 
+ 1	10132	0.01	armenia cochrane imperio siglo thomas país región armenio independencia occidental territorio resultado actual zona mundial historia año armenios reino 
+13	0.02
+ 0	22299	0.01	constitution united court power article congress amendment law federal supreme clause technology constitutional government convention require los unidos constitución 
+ 1	14018	0.01	belfast ciudad gobierno norte virginia derecho unidos belarús alejandría alexandria belarus irlanda centro constitución consentimiento forma artículo capital condado 
+14	0.02
+ 0	11247	0.01	technology box hand opponent fighter fight body boxer boxing result punch arm lead foot strike head attack rule throw 
+ 1	12302	0.01	bricker expedición boston estadounidense braddock carta george escribió amendment unidos indios acción americanos tea opinión campaña tomar party declaró 
+15	0.02
+ 0	14777	0.01	bbc news span service radio technology television broadcast channel station network guinness include public balbriggan programme event programming coverage 
+ 1	20219	0.01	batalla battle flota arnold barcos británicos quebec estadounidense ciudad británica hombre buque mando línea ticonderoga fuerte capitán york princeton 
+16	0.02
+ 0	11471	0.01	charles spain iii king lee spanish france organization french royal health war carlos count son naples españa duke die 
+ 1	11701	0.01	carlos iii atlántico norte españa rey athlone mar atlantic real sur ocean charles océano años nápoles ii américa maría 
+17	0.02
+ 0	13500	0.01	art building city deco san petersburg style design technology petersburgo museum build palace include hall russian construction architecture glass 
+ 1	12346	0.01	san petersburgo ciudad grande boxeo box golpe oponente boxeador rusia pedro mano lucha tre palacio museo centro corte entonce 
+18	0.02
+ 0	13217	0.01	colony virginia colonial william england history united english mary college barton establish james settler settlement carolina land clara north 
+ 1	13264	0.01	bbc radio news televisión servicio música noticias programas balbriggan ballinasloe unido canal línea reino compañía londres estación licencia serie 
+19	0.02
+ 0	12410	0.01	arnold fort quebec river west city york virginia benedict ticonderoga john capture lake mountains carleton valley allegheny alien hudson 
+ 1	12066	0.01	edificio nacional hall casa carroll exposición filadelfia sitio parque construcción histórico maryland monumento ward museo john centennial pie exposition 
+20	0.02
+ 0	9853	0.01	charles light bulb music incandescent language eslovenia river phase slovenia peale cushman time ballinasloe country popular baltic festival rockingham 
+ 1	10477	0.01	austria eslovenia lexington concord país guerra abril mundial battle alemania boston batallas massachusetts declaró smith compañía provincia camino gage 
+21	0.02
+ 0	14470	0.01	government revolution american political woman people write technology organization social health life historian freedom society view equal create idea 
+ 1	14591	0.01	universidad arthur william escuela college mary york años escuelas educación chester presidente derecho unidos año colegio sistema harvard pública 
+22	0.02
+ 0	12942	0.01	boston bosnia herzegovina tea technology party british bricker colony massachusetts massacre parliament company agreement bosnian lead tax soldier east 
+ 1	15302	0.01	boston baltimore ciudad centro puerto distrito massachusetts maryland área barrio sede hill street incluyendo transporte importante ruta unidos park 
+23	0.02
+ 0	16336	0.01	congress confederation united convention continental articles gray delegate technology constitution government committee philadelphia june national power meet september july 
+ 1	19404	0.01	congreso constitución convención enmienda confederación artículos gobierno delegado unidos united senado states cámara ratificación comité representantes federal propuesta estatale 
+24	0.02
+ 0	13281	0.01	soviet union russian russia republic soviética lavrov foreign country war unión technology government economic treaty ruso sign república socialist 
+ 1	13945	0.01	unión soviética rusia república ruso guerra lavrov socialista rusa tratado política gobierno partido ucrania federativa exteriores asuntos país soviético 
+25	0.02
+ 0	11901	0.01	house parliament technology united lords commons washington kingdom time george government pass law committee minister power hold exposition centennial 
+ 1	12958	0.01	ejército británico guerra fuerza fuerzas army reino unidade militare militar unidad unido regimiento imperio british defensa servicio barbary soldado 
+26	0.02
+ 0	18021	0.01	clinton vote election president obama party presidential candidate democratic win republican campaign electoral vice elect elector receive majority presidency 
+ 1	17258	0.01	colonias bretaña británico gray británica parlamento gobierno británicos guerra independencia inglaterra estadounidense massachusetts boston colonos india revolution imperio colonial 
+27	0.02
+ 0	12276	0.01	biodiversity specie forest water climate include average level bog region change temperature occur plant natural land cover country azerbaijan 
+ 1	12239	0.01	lincoln washington albany abraham york booker sangre sangría negros esclavitud médico muerte sur convirtió médicos tuskegee negra illinois enfermedad 
+28	0.02
+ 0	10620	0.01	american war technology estados economic unidos america political los health revolutionary independence revolution united school nation support history law 
+ 1	13152	0.01	hamilton alexander washington unidos john jefferson york james bandera adams thomas ross carta george escribió betsy madison henry burr 
+29	0.02
+ 0	12626	0.01	hamilton alexander write federalist jefferson james york john technology adams thomas letter washington madison government organization report support congress 
+ 1	12072	0.01	bell alexander graham michelson teléfono albert premio patente años escocia luz abraham oficina padre sonido gray comenzó discurso distancia 
+30	0.02
+ 0	10694	0.01	bell alexander graham health technology patent organization company telephone era speech march experiment sound continue build include day family 
+ 1	12825	0.01	río unidos frontera norte washington oeste sur canadá tierra york george united states territorio virginia border ohio canada km 
+31	0.02
+ 0	16017	0.01	church book prayer arbitration common anglican catholic anglicanism england communion religious service form century bishop party english christian religion 
+ 1	15311	0.01	jefe comandante fuerzas presidente defensa armadas commander chief virginia militar ministro fuerza guerra mando autoridad constitución artículo nacional supremo 
+32	0.02
+ 0	14035	0.01	chief commander armed military force president minister forces defence head national command authority constitution arm supreme article king republic 
+ 1	14588	0.01	bosnia herzegovina equipo baloncesto liga club fútbol juego basketball nacional juegos campeonato irlanda law mundial equipos asociación pelota baton 
+33	0.02
+ 0	18384	0.01	war american british revolution britain revolutionary french treaty france independence army force george americans victory support colony america continental 
+ 1	18207	0.01	guerra francia tratado bretaña unidos charles francesa españa paz francés independencia británicos estadounidense vergennes conflicto francese parís américa alianza 
+34	0.02
+ 0	13808	0.01	president arthur office elect party senate appoint serve health cabinet house organization secretary election governor york term position chester 
+ 1	10927	0.01	azerbaiyán años país azerbaijan mayoría nacional cushman paíse república mundo europa locale región nombre clase local charlotte mientra regione 
+35	0.02
+ 0	12250	0.01	battle british french concord lexington ship birch militia company april technology organization boston day health fleet captain saintes lead 
+ 1	15615	0.01	iglesia oración libro común inglaterra comunión anglicana anglicanism iglesias católica common religión anglicanos anglicanismo dios prayer book protestante religiosa 
+36	0.02
+ 0	13030	0.01	army british war force continental military unit regiment soldier officer serve barbados militia operation department service cornwallis troop royal 
+ 1	14723	0.01	obama política gobierno unidos organización miembro ley partido presidente bélgica griffith belgium seguridad anunció plan tratado aontú salud marzo 
+37	0.02
+ 0	14925	0.01	jackson lincoln johnson black andrew organization health technology south union tennessee war hills abraham southern white slavery land john 
+ 1	17323	0.01	colonial comercio esclavitud colonia united colonias history africano trade slave states inglaterra atlantic áfrica colonos siglo sur virginia atlántico 
+38	0.02
+ 0	10431	0.01	american carnegie united society culture andrew history steel library company class americans pennsylvania business enlightenment life build iron philosophical 
+ 1	11747	0.01	charles cornwallis lee sur pinckney guerra carolina barton americana john henry clara peale william gadsden marquess christopher rockingham sirvió 
+39	0.02
+ 0	14501	0.01	austria technology atlantic north azerbaijan ocean south athlone include country sea west german water austrian europe east asian form 
+ 1	29805	0.01	washington batalla battle británicos tropas hombre fort estadounidense ejército mando regimiento fuerza ataque coronel hill fuerte howe ordenó greene 
+40	0.02
+ 0	11858	0.01	technology health organization time boston day include follow result continue remain establish bring june lead hold mark lose period 
+ 1	16828	0.01	gobierno millone ley deuda dólare dinero congreso impuesto federal crisis nacional banco impuestos ingresos pagar gasto presupuesto fondo comercio 
+41	0.02
+ 0	11054	0.01	team league basketball play association football national club player game ireland sport win ball sí university aos include cup 
+ 1	11087	0.01	arnold campo especie ayudante biodiversity biodiversidad camp bombillas servicio benedict aide diversidad energía light servicios rango phase bulb incandescent 
+42	0.02
+ 0	10876	0.01	coolidge camp law calvin aide baton time officer president technology governor health police enforcement organization office hold appoint rank 
+ 1	12138	0.01	franklin span benjamin isbn público historia universidad biblioteca aos press red ed periódico evento washington publicó política unedo richard 
+43	0.02
+ 0	9822	0.01	armenia technology armenian king battle county health century continental navy quarter result time dublin son day brian organization establish 
+ 1	13854	0.01	cámara ley parlamento proyecto comunes miembros franklin lores gobierno consejo elegido bicameralism unido cámaras reino alta años asamblea parliament 
+44	0.02
+ 0	12589	0.01	school university washington college education student public booker black institute law community study medical harvard white include graduate institution 
+ 1	10802	0.01	unidos moneda casa saint años año gaudens programa serie diseño estadounidense quarter forma departamento state augustus importante tre proceso 
+45	0.02
+ 0	16690	0.01	government debt pay bank economic money increase budget federal economy national industry tax credit fund trade foreign crisis taxis 
+ 1	14969	0.01	guerra casa hombre enero soldados ley orden declaración act massachusetts hombres creía finalmente entonce respondió despué john respuesta llevó 
+46	0.02
+ 0	14814	0.01	baltimore city boston park center street national include locate south major town maryland district county neighborhood east port north 
+ 1	14692	0.01	derechos american revolución libertad americana hombres sociedad gobierno independencia declaración libre thomas creado federalismo john ilustración allegheny político política 
+47	0.02
+ 0	15105	0.01	ship fleet british batalla navy french island force attack spanish san admiral naval sail bay supply port organization capture 
+ 1	14416	0.01	batalla san cabo asedio bennington ciudad agosto stark ataque puerto mesolongi julio fuerza tre thomas vicente flota buque armada 
+48	0.02
+ 0	13264	0.01	technology law court issue trial claim crime charge people subject public official action administration federal organization political reason report 
+ 1	12900	0.01	siglo xix xx finale historia década principio importante política xviii período años europa especialmente unidos forma medida cultura época 
+49	0.02
+ 0	14508	0.01	benjamin franklin harrison rush american flag john lincoln philadelphia william health technology ross organization pennsylvania west society america betsy 
+ 1	21357	0.01	congreso united states constitución constitution tribunal unidos presidente artículo article corte ley cláusula federal suprema supremo derecho caso leyes 

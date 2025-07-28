@@ -91,7 +91,7 @@ class QueryEngine(NLPoperator):
         '''
         Generates and intializes the prompter for answering
         '''
-        llm_model = "llama3.3:70b"
+        llm_model = "llama3.1:8b"
         ollama_host = "http://kumo02.tsc.uc3m.es:11434"
 
         prompter = Prompter(
