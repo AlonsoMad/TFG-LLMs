@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, request,flash, jsonify, session
+from flask import Blueprint, render_template, request,flash, jsonify, session, send_file
 from flask_login import current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
+
 
 from models import User
 from enum import Enum
@@ -10,7 +11,7 @@ import os
 import pandas as pd
 import numpy as np
 import requests
-from tools.tools import load_datasets
+from tools.tools import *
 from auth import validate_password
 from __init__ import db
 
@@ -123,6 +124,8 @@ def submit_analysis():
         flash("Missing topic or sample count.", "danger")
         return jsonify({"error": "Missing topic or sample count."}), 400
 
+    session['n_samples'] = n_samples
+
     try:
         response = requests.post(
             f"{mind_api_url}/run",
@@ -135,9 +138,6 @@ def submit_analysis():
             flash(f"Failed to start analysis: {response.text}", "danger")
     except Exception as e:
         flash(f"Error contacting MIND: {str(e)}", "danger")
-
-    # Optional: clear stored topic from session
-    session.pop('selected_topic', None)
 
     return jsonify({"message": "Sample recieved, starting analysis."})
 
@@ -182,6 +182,7 @@ def mode_selection():
 def detection():
     mind_api_url = f"{os.getenv('MIND_API_URL', 'http://mind:93')}"
     dataset_path = os.getenv("DATASET_PATH", "/Data/3_joined_data")
+
     status = "idle"
     mind_info = {}
     ds_tuple = ( [], [], [])
@@ -197,9 +198,11 @@ def detection():
         status_resp = requests.get(f"{mind_api_url}/status")
         status_data = status_resp.json()
         status = status_data.get("state", "unknown")
+        #force completed
+        status = "completed"
         print(status)
 
-        if status in ["idle", "failed", "completed"]:
+        if status in ["idle", "failed"]:
             # init_resp = requests.post(f"{mind_api_url}/initialize")
             # flash(init_resp.json().get("message"), "info")
             ds_tuple = load_datasets(dataset_path)
@@ -232,8 +235,15 @@ def detection():
 
             flash("MIND is currently processing.", "info")
         elif status == "completed":
+            dataset_path = os.getenv("OUTPUT_PATH", "/Data/mind_folder")
+            topic_id = session.get('selected_topic') or 5 #Just for testing
+            n_samples = session.get('n_samples') or 5
 
-            flash("MIND processing completed.", "success")
+            full_path = os.path.join(dataset_path,'final_results',f"topic_{topic_id}",f'samples_len_{n_samples}', 'results.parquet')
+
+            ds = pd.read_parquet(full_path)
+            mind_info = ds.to_dict(orient='records')
+
         else:
             flash("Unknown MIND state.", "danger")
 
@@ -242,10 +252,43 @@ def detection():
 
     return render_template("detection.html", user=current_user, status=status, ds_tuple=ds_tuple, mind_info=mind_info)
 
+@views.route('/upload_dataset', methods=['GET','POST'])
+def upload_dataset():
+    pass
+
+@views.route('/get_results', methods=['GET','POST'])
+def get_results():
+    dataset_path = os.getenv("OUTPUT_PATH", "/Data/mind_folder")
+    topic_id = session.get('selected_topic')
+    n_samples = session.get('n_samples')
+    if not topic_id or not n_samples:
+        topic_id = 5  # Default topic ID for testing
+        n_samples = 5 
+    full_path = os.path.join(dataset_path,'final_results',f"topic_{topic_id}",f'samples_len_{n_samples}', 'results.parquet')
+    return send_file(full_path, as_attachment=True, download_name=f"results_topic_{topic_id}_samples_{n_samples}.parquet")
 
 @views.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
+
+    datasets = []
+    dataset_path = os.path.join(os.getenv("OUTPUT_PATH", "/Data/mind_folder"), 'final_results')
+
+    for root, dirs, files in os.walk(dataset_path):
+        for file in files:
+            if file == "results.parquet":
+                full_path = os.path.join(root, file)
+                try:
+                    df = pd.read_parquet(full_path)
+                    datasets.append({
+                        "name": f'results_topic_{extract_topic_id(root)}_samples_{extract_sample_len(root)}',
+                        "topic": extract_topic_id(root),
+                        "sample_len": extract_sample_len(root),
+                        "data": df
+                    })
+                except Exception as e:
+                    print(f"Error reading {full_path}: {e}")
+
     if request.method == 'POST':
 
         new_email = request.form.get('email')
@@ -276,4 +319,4 @@ def profile():
             flash("Profile updated successfully!", "success")
         else:
             flash("No changes made to the profile.", "info")
-    return render_template("profile.html", user=current_user)
+    return render_template("profile.html", user=current_user, datasets=datasets)

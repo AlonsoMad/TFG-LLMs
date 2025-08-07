@@ -2,6 +2,7 @@ import dotenv
 import os
 import pandas as pd
 import numpy as np
+import re
 
 def load_datasets(dataset_path: str) -> tuple:
 
@@ -20,3 +21,13 @@ def load_datasets(dataset_path: str) -> tuple:
         print(f"Dataset {d} loaded with shape {ds.shape}")
     
     return dataset_list, datasets_name, shapes
+
+
+
+def extract_topic_id(path):
+    match = re.search(r'topic_(\d+)', path)
+    return int(match.group(1)) if match else None
+
+def extract_sample_len(path):
+    match = re.search(r'samples_len_(\d+)', path)
+    return int(match.group(1)) if match else None
