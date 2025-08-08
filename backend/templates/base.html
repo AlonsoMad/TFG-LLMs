@@ -28,11 +28,15 @@
             </li>
             {% if current_user.is_authenticated %}
             <li class="nav-item">
-                <a class="nav-link" href="/detection">Detection</a>
+                <a class="nav-link" href="/datasets">Datasets for detection</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="/datasets">Datasets</a>
+                <a class="nav-link" href="/preprocessing">Preprocessing</a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/detection">Detection</a>
+            </li>
+
             {% endif %}
         </ul>
 

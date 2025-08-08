@@ -1,8 +1,7 @@
 from flask import Blueprint, render_template, request,flash, jsonify, session, send_file
 from flask_login import current_user, login_required
-from werkzeug.security import generate_password_hash, check_password_hash
-
-
+from werkzeug.security import generate_password_hash, check_password_hash 
+from werkzeug.utils import secure_filename
 from models import User
 from enum import Enum
 
@@ -74,6 +73,7 @@ def dataset_selection():
         return jsonify({'error': 'No dataset provided'}), 400
 
     print("Received dataset:", dataset)
+    session['dataset'] = dataset
     response = requests.post(f'{mind_api_url}/initialize', json={'dataset': dataset})
     
     return jsonify({'message': 'Dataset received', 'dataset': dataset})
@@ -140,6 +140,11 @@ def submit_analysis():
         flash(f"Error contacting MIND: {str(e)}", "danger")
 
     return jsonify({"message": "Sample recieved, starting analysis."})
+
+@views.route('/preprocessing', methods=['GET', 'POST'])
+@login_required
+def preprocessing():
+    return render_template('preprocessing.html')
 
 
 @views.route('/mode_selection', methods=['GET', 'POST'])
@@ -238,6 +243,13 @@ def detection():
             dataset_path = os.getenv("OUTPUT_PATH", "/Data/mind_folder")
             topic_id = session.get('selected_topic') or 5 #Just for testing
             n_samples = session.get('n_samples') or 5
+            og_dataset = session.get('dataset') or 'en_2025_06_05_matched'
+            og_dataset_path = os.path.join(os.getenv("DATASET_PATH", "/Data/3_joined_data"), og_dataset, 'polylingual_df')
+            og_ds = pd.read_parquet(og_dataset_path)
+            shapes = og_ds.shape
+            og_ds = og_ds.drop(columns=['index'])
+
+            ds_tuple = (og_ds, [og_dataset], [shapes])
 
             full_path = os.path.join(dataset_path,'final_results',f"topic_{topic_id}",f'samples_len_{n_samples}', 'results.parquet')
 
@@ -254,7 +266,32 @@ def detection():
 
 @views.route('/upload_dataset', methods=['GET','POST'])
 def upload_dataset():
-    pass
+    upload_folder = os.getenv("USER_DS_PATH", "/Data/0_input_data")
+    os.makedirs(upload_folder, exist_ok=True)
+
+    # Check if file part exists
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files['file']
+
+    # Check if no file selected
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    # Validate extension
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type"}), 400
+
+    # Secure and save file
+    filename = secure_filename(file.filename)
+    save_path = os.path.join(upload_folder, filename)
+    try:
+        file.save(save_path)
+    except Exception as e:
+        return jsonify({"error": f"Could not save file: {e}"}), 500
+
+    return jsonify({"message": f"File uploaded successfully to {save_path}"}), 200
 
 @views.route('/get_results', methods=['GET','POST'])
 def get_results():

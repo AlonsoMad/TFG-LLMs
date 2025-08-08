@@ -4,6 +4,12 @@ import pandas as pd
 import numpy as np
 import re
 
+
+def allowed_file(filename):
+    allowed_extensions = os.getenv("ALLOWED_EXTENSIONS", "parquet,csv,xlsx").split(",")
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+
 def load_datasets(dataset_path: str) -> tuple:
 
     dataset_list = []

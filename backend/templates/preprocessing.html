@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Preprocessing{% endblock %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+    <h1 class="mb-5">Preprocess your datasets!</h1>
+
+    <div class="d-flex justify-content-center align-items-center flex-wrap">
+        <!-- Step 1 -->
+        <div class="step-box" data-toggle="modal" data-target="#stepModal" data-step="1">
+            Dataset selection<br><small>Click to tune</small>
+        </div>
+
+        <div class="arrow">&#8594;</div>
+
+        <!-- Step 2 -->
+        <div class="step-box" data-toggle="modal" data-target="#stepModal" data-step="2">
+            Preprocessing<br><small>Click to tune</small>
+        </div>
+
+        <div class="arrow">&#8594;</div>
+
+        <!-- Step 3 -->
+        <div class="step-box" data-toggle="modal" data-target="#stepModal" data-step="3">
+            Topic Modeling<br><small>Click to tune</small>
+        </div>
+
+        <div class="arrow">&#8594;</div>
+
+        <!-- Step 4 -->
+        <div class="step-box" data-toggle="modal" data-target="#stepModal" data-step="4">
+            Data<br><small>Download</small>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="stepModal" tabindex="-1" role="dialog" aria-labelledby="stepModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="stepModalLabel">Step Info</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        This is placeholder content. It will change depending on the step clicked.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+    .step-box {
+        width: 150px;
+        height: 100px;
+        background-color: #f8f9fa;
+        border: 2px solid #28a745;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.2s;
+        font-weight: bold;
+    }
+    .step-box:hover {
+        background-color: #e9f7ef;
+        transform: scale(1.05);
+    }
+    .arrow {
+        font-size: 2rem;
+        margin: 0 15px;
+        color: #28a745;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('stepModal');
+    const modalTitle = modal.querySelector('.modal-title');
+    const modalBody = modal.querySelector('.modal-body');
+
+    document.querySelectorAll('.step-box').forEach(box => {
+        box.addEventListener('click', () => {
+            const step = box.getAttribute('data-step');
+            modalTitle.textContent = `Step ${step} Details`;
+            modalBody.textContent = `This is where content for Step ${step} will go.`;
+        });
+    });
+});
+</script>
+{% endblock %}

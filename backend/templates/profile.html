@@ -11,11 +11,6 @@
                 <div class="card-header">
                     <h5 class="mb-0">{{ dataset.name }}</h5>
                 </div>
-                <div class="card-body">
-                    <p><strong>Topic:</strong> {{ dataset.topic }}</p>
-                    <p><strong>Sample Length:</strong> {{ dataset.sample_len }}</p>
-                    <!-- <a href="{{ url_for('views.get_results', topic_id=dataset.topic, n_samples=dataset.sample_len) }}" class="btn btn-primary">Download Results</a> -->
-                </div>
             </div>
         {% endfor %}
     {% else %}
@@ -33,7 +28,7 @@
         <p class="mt-2 text-muted" id="file-name"></p>
     </div>
     <div class="text-right mt-3">
-        <button type="submit" class="btn btn-success">Upload Dataset</button>
+        <button type="submit" class="btn btn-success" id="btn-success-files">Upload Dataset</button>
     </div>
 </form>
 
@@ -59,32 +54,44 @@
 </form>
 
 <script>
+function uploadFile() {
+    const file = document.getElementById('file-input').files[0];
+    if (!file) return alert("Please select a file first.");
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/upload_dataset', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => alert(data.message || data.error))
+    .catch(err => console.error(err));
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const browseBtn = document.getElementById('browse-btn');
     const fileNameDisplay = document.getElementById('file-name');
+    const inputBtn = document.getElementById('btn-success-files');
 
-    // Open file dialog on button click
     browseBtn.addEventListener('click', () => fileInput.click());
 
-    // Show file name
     fileInput.addEventListener('change', () => {
         fileNameDisplay.textContent = fileInput.files[0]?.name || '';
     });
 
-    // Drag over
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('border-primary');
     });
 
-    // Drag leave
     dropZone.addEventListener('dragleave', () => {
         dropZone.classList.remove('border-primary');
     });
 
-    // Drop file
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('border-primary');
@@ -93,9 +100,14 @@ document.addEventListener('DOMContentLoaded', function () {
             fileNameDisplay.textContent = e.dataTransfer.files[0].name;
         }
     });
+
+    inputBtn.addEventListener('click', uploadFile);
+
 });
+
 </script>
 
+<!-- <script src="http://localhost:3000/static/js/profile.js" ></script> -->
 
 
 {% endblock %}

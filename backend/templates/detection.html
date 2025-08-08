@@ -72,12 +72,16 @@
                 </div>
                 <div class="card-body">
                     <p class="lead">MIND has completed processing. Below are the results:</p>
-                    <!-- Insert modular visualization here -->
                     {% for info in mind_info %}
                     <div class="card mb-3 shadow-sm">
                         <div class="card-header d-flex justify-content-between align-items-center bg-light">
                             <strong>Q#{{ loop.index }}</strong>
-                            <span class="text-muted small">Doc ID: {{ info.doc_id }}</span>
+                            <a href="#" 
+                                class="text-muted small view-doc-link" 
+                                data-doc-id="{{ info.doc_id }}" 
+                                data-doc-content="{{ ds_tuple[0].loc[ds_tuple[0].doc_id == info.doc_id, 'raw_text'].iloc[0] | e }}">
+                                Doc ID: {{ info.doc_id }}
+                            </a>
                         </div>
                         <div class="card-body">
                             <p><strong>Source passage:</strong> <span class="text-truncate d-inline-block" style="max-width: 100%; overflow: hidden;">{{ info.passage_s }}</span></p>
@@ -91,6 +95,25 @@
         {% endif %}
     {% endif %}
 
+</div>
+
+<div class="modal fade" id="docModal" tabindex="-1" role="dialog" aria-labelledby="docModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="docModalLabel">Document Content</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">Loading document content...</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <ul class="nav nav-pills mb-4 d-flex justify-content-between w-100" id="myTab" role="tablist">
@@ -141,6 +164,27 @@
 }
 </style>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = $('#docModal');
+    const modalTitle = modal.find('.modal-title');
+    const modalBody = modal.find('.modal-body');
+
+    document.querySelectorAll('.view-doc-link').forEach(link => {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            const docId = this.getAttribute('data-doc-id');
+            const docContent = this.getAttribute('data-doc-content');
+
+            modalTitle.text(`Document ${docId}`);
+            modalBody.html(`<pre style="white-space: pre-wrap;">${docContent}</pre>`);
+
+            modal.modal('show');
+        });
+    });
+});
+</script>
 
 {% endblock %}
 
