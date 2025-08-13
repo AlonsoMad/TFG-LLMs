@@ -220,15 +220,37 @@ class CLI:
         )
         return topic_df.reset_index(names='Topic #').to_dict(orient='records')
     
+    # def topic_documents_overview(self, topic_id: str, n_samp: int = 20) -> list[dict]:
+    #     topic_id = int(topic_id)
+    #     subset = self.thetas_en[:, topic_id]
+    #     top_n_idx_unsorted = np.argpartition(-subset, n_samp)[:n_samp]
+    #     top_n_idx_sorted = top_n_idx_unsorted[np.argsort(-subset[top_n_idx_unsorted])]
+    #     documents = self.dataset[self.dataset['doc_id'].isin(top_n_idx_sorted)]
+        
+    #     documents = documents[['raw_text']].dropna()
+    #     return documents.to_dict(orient="records")       
+
     def topic_documents_overview(self, topic_id: str, n_samp: int = 20) -> list[dict]:
         topic_id = int(topic_id)
         subset = self.thetas_en[:, topic_id]
         top_n_idx_unsorted = np.argpartition(-subset, n_samp)[:n_samp]
         top_n_idx_sorted = top_n_idx_unsorted[np.argsort(-subset[top_n_idx_unsorted])]
-        documents = self.dataset[self.dataset['doc_id'].isin(top_n_idx_sorted)]
-        
-        documents = documents[['raw_text']].dropna()
-        return documents.to_dict(orient="records")       
+
+        documents = self.dataset[self.dataset['doc_id'].isin(top_n_idx_sorted)][['doc_id', 'raw_text']].dropna()
+
+
+        result = []
+        for _, row in documents.iterrows():
+            doc_id = row['doc_id']
+            topic_dist = self.thetas_en[doc_id].tolist()  # list of probabilities for all topics
+            result.append({
+                "doc_id": doc_id,
+                "raw_text": row['raw_text'],
+                "topic_distribution": topic_dist
+            })
+
+        return result
+
 
     def select(self,option:str):
         '''

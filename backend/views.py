@@ -204,7 +204,7 @@ def detection():
         status_data = status_resp.json()
         status = status_data.get("state", "unknown")
         #force completed
-        status = "completed"
+        # status = "completed"
         print(status)
 
         if status in ["idle", "failed"]:
@@ -307,7 +307,7 @@ def get_results():
 @views.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-
+    from __init__ import db
     datasets = []
     dataset_path = os.path.join(os.getenv("OUTPUT_PATH", "/Data/mind_folder"), 'final_results')
 

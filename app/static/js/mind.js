@@ -289,21 +289,6 @@ class MINDInterface {
         // }, 1000); // Adjust the timeout as needed
     }
 
-    handleSubmitNumber(value) {
-        console.log("Submitted number:", value);
-        // TODO: Send number to backend
-        /*
-        fetch('/submit-number', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ number: value })
-        })
-        .then(res => res.json())
-        .then(data => console.log(data));
-        */
-    }
-
-
 }
 
 // Instantiate when DOM is fully loaded

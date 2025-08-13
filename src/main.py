@@ -93,11 +93,12 @@ def get_topic_documents(topic_id: str):
     if current_status["state"] not in [MindStatus.initialized, MindStatus.topic_exploration]:
         raise HTTPException(status_code=400, detail="MIND not initialized or not in topic exploration state.")
     
-    try:
-        topic_documents = cli.topic_documents_overview(topic_id)
-        return {"topic_documents": topic_documents}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching topic documents: {str(e)}")
+# try:
+    topic_documents = cli.topic_documents_overview(topic_id)
+    print(topic_documents)
+    return {"topic_documents": topic_documents}
+    # except Exception as e:
+        # raise HTTPException(status_code=500, detail=f"Error fetching topic documents: {str(e)}")
 
 @mind.get("/explore")
 def explore():
