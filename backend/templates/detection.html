@@ -25,24 +25,40 @@
             <p>Inspect the available topics or start analysis.</p>
         {% else %}
             <div class="card shadow-sm mb-4" id="topic-list-card">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Available topics for exploration</h5>
+                    
+                    <div>
+                        <a href="#" id="list-view-btn" class="text-white fw-bold me-3 active-view">List</a>
+                        <a href="#" class="text-white fw-bold" style="opacity: 0; pointer-events: none;"> | </a>
+                        <a href="#" id="graph-view-btn" class="text-white fw-bold" style="opacity: 0; pointer-events: none;">Graph</a>
+                    </div>
                 </div>
-                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
-                    <ul class="list-group list-group-flush">
-                        {% for topic in mind_info %}
-                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong>Topic {{ topic["Topic #"] }}:</strong>
-                                    <span class="text-muted">{{ topic["Key words"] }}</span>
-                                </div>
-                                <!-- Optional action button -->
-                                <button class="btn btn-sm btn-outline-primary topic_button" data-topic-id="{{ topic['Topic #'] }}">Select</button>
-                            </li>
-                        {% endfor %}
-                    </ul>
+
+                <div id="topic-list-view">
+                    <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                        <ul class="list-group list-group-flush">
+                            {% for topic in mind_info %}
+                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>Topic {{ topic["Topic #"] }}:</strong>
+                                        <span class="text-muted">{{ topic["Key words"] }}</span>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary topic_button" data-topic-id="{{ topic['Topic #'] }}">Select</button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- GRAPH VIEW -->
+                <div id="topic-graph-view" class="d-none">
+                    <div class="card-body" style="height: 400px; overflow: hidden;">
+                        <iframe id="pyldavis-frame" src="" style="border: none; width: 100%; height: 100%;"></iframe>
+                    </div>
                 </div>
             </div>
+
             <div class="card shadow-sm mb-4 d-none" id="document-carousel-card">
                 <div class="card-header bg-secondary text-white">
                     <h5 class="mb-0">Documents for selected topic</h5>
@@ -52,14 +68,21 @@
                         <div class="carousel-inner" id="carousel-inner">
                             {% for doc in documents %}
                             <div class="carousel-item {% if loop.first %}active{% endif %}">
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <p>{{ doc.raw_text }}</p>
-                                    </div>
+                                <div class="card shadow-sm border-0">
+                                    <div class="row g-0 align-items-center">
+                                        
+                                        <!-- Document text -->
+                                        <div class="col-md-8 p-3">
+                                            <div class="doc-text" style="max-height: 300px; overflow-y: auto;">
+                                                <p class="mb-0">{{ doc.raw_text }}</p>
+                                            </div>
+                                        </div>
 
-                                    <!-- topic distribution chart -->
-                                    <div class="col-md-4">
-                                        <canvas id="chart-doc-{{ doc.doc_id }}" width="200" height="200"></canvas>
+                                        <!-- Topic distribution chart -->
+                                        <div class="col-md-4 p-3 text-center">
+                                            <h6 class="text-muted mb-2">Topic Distribution</h6>
+                                            <canvas id="chart-doc-{{ doc.doc_id }}" style="max-width: 100%; height: auto;"></canvas>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -167,7 +190,50 @@
 <script src="http://frontend:80/static/js/mind.js" ></script> 
 <script src="/static/js/mind.js" ></script>  -->
 
+
 <script>
+function plotTopicDistributions(documents) {
+    documents.forEach(doc => {
+        const canvas = document.getElementById(`chart-doc-${doc.doc_id}`);
+        if (!canvas) {
+            console.warn(`No canvas found for doc_id ${doc.doc_id}`);
+            return;
+        }
+
+        new Chart(canvas, {
+            type: 'pie',
+            data: {
+                labels: doc.topic_distribution.map((_, i) => `Topic ${i}`),
+                datasets: [{
+                    data: doc.topic_distribution,
+                    backgroundColor: [
+                        '#FF6384', '#36A2EB', '#FFCE56', 
+                        '#4BC0C0', '#9966FF', '#FF9F40', '#66FF66'
+                    ]
+                }]
+            },
+            options: {
+                responsive: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12 }
+                    }
+                }
+            }
+        });
+    });
+}
+</script>
+
+
+<script>
+const topicColors = [
+    '#FF6384', '#36A2EB', '#FFCE56',
+    '#4BC0C0', '#9966FF', '#FF9F40',
+    '#66FF66', '#FF6666', '#6699FF', '#99FF99'
+];
+
 class MINDInterface {
     constructor() {
         this.datasetItems = document.querySelectorAll('.dataset-item');
@@ -175,6 +241,12 @@ class MINDInterface {
         this.form = document.getElementById('mind-number-form');
         this.numberInput = document.getElementById('numberInput');
         this.topicButtons = document.querySelectorAll('.topic_button') ?? [];
+        this.listViewBtn = document.getElementById('list-view-btn');
+        this.graphViewBtn = document.getElementById('graph-view-btn');
+        this.listView = document.getElementById('topic-list-view');
+        this.graphView = document.getElementById('topic-graph-view');
+
+        console.log(this.listView)
 
         this.fetchMindStatus();
         this.initEventListeners();
@@ -216,6 +288,35 @@ class MINDInterface {
             this.initTopicButtons();
         }
         this.form.addEventListener('submit', this.handleFormSubmit.bind(this));
+
+        if(this.listViewBtn){
+            this.listViewBtn.addEventListener('click', (e) => {
+                console.log("List view button clicked");
+                e.preventDefault();
+                console.log("listView is:", this.listView);
+                this.listView.classList.remove('d-none');
+                this.graphView.classList.add('d-none');
+                this.listViewBtn.classList.add('active-view');
+                this.graphViewBtn.classList.remove('active-view');
+            });
+        }
+
+        if(this.graphViewBtn){
+            this.graphViewBtn.addEventListener('click', (e) => {
+                console.log("Graph view button clicked");
+                e.preventDefault();
+                this.listView.classList.add('d-none');
+                this.graphView.classList.remove('d-none');
+                this.graphViewBtn.classList.add('active-view');
+                this.listViewBtn.classList.remove('active-view');
+
+
+                if (!this.graphView.dataset.loaded) {
+                    this.loadPyLDAvisGraph();
+                    this.graphView.dataset.loaded = "true";
+                }
+            });
+        }
     }
     initTopicButtons() {
     this.topicButtons.forEach(button => {
@@ -226,7 +327,21 @@ class MINDInterface {
         });
     });
     }
+    loadPyLDAvisGraph() {
+        fetch('/get_pyldavis')
+            .then(res => res.json())
+            .then(visData => {
+                const visContainer = document.createElement('div');
+                visContainer.id = 'pyldavis-container';
+                document.getElementById('topic-graph-view').innerHTML = '';
+                document.getElementById('topic-graph-view').appendChild(visContainer);
 
+                // Render PyLDAvis inside the container
+                // "ldavis" is the JS namespace exposed by the PyLDAvis JS lib
+                LDAvis.load(visData, '#pyldavis-container');
+            })
+            .catch(err => console.error("Error loading PyLDAvis data:", err));
+    }
     initCarouselControls() {
         const carousel = document.getElementById('document-carousel');
         const prevBtn = document.getElementById('prev-doc');
@@ -343,19 +458,35 @@ class MINDInterface {
         return cookieValue || '';
     }
 
-
     renderCarousel(documents) {
         const carouselContainer = document.getElementById('carousel-inner');
         const topicListCard = document.getElementById('topic-list-card');
         const carouselCard = document.getElementById('document-carousel-card');
 
-        carouselContainer.innerHTML = ''; // Clear previous
+        // Clear previous content
+        carouselContainer.innerHTML = '';
+
         documents.forEach((doc, index) => {
             const activeClass = index === 0 ? 'active' : '';
+
             carouselContainer.innerHTML += `
                 <div class="carousel-item ${activeClass}">
-                    <div class="p-3 border rounded">
-                        <p><strong>Text:</strong> ${doc.raw_text || 'No content available'}</p>
+                    <div class="card shadow-sm border-0">
+                        <div class="row g-0 align-items-center">
+                            
+                            <!-- Document text -->
+                            <div class="col-md-8 p-3">
+                                <div class="doc-text" style="max-height: 300px; overflow-y: auto;">
+                                    <p class="mb-0">${doc.raw_text || 'No content available'}</p>
+                                </div>
+                            </div>
+
+                            <!-- Topic distribution chart -->
+                            <div class="col-md-4 p-3 text-center">
+                                <h6 class="text-muted mb-2">Topic Distribution</h6>
+                                <canvas id="chart-doc-${doc.doc_id}" style="max-width: 100%; height: auto;"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -367,7 +498,37 @@ class MINDInterface {
 
         // Re-initialize Bootstrap carousel
         $('#document-carousel').carousel(0);
+
+        // Plot charts for each document
+        documents.forEach(doc => {
+            const ctx = document.getElementById(`chart-doc-${doc.doc_id}`);
+            if (ctx && doc.topic_distribution) {
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: doc.topic_distribution.map((_, i) => `Topic ${i}`),
+                        datasets: [{
+                            data: doc.topic_distribution,
+                            backgroundColor: [
+                                '#FF6384', '#36A2EB', '#FFCE56', 
+                                '#4BC0C0', '#9966FF', '#FF9F40', '#66FF66'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { boxWidth: 12 }
+                            }
+                        }
+                    }
+                });
+            }
+        });
     }
+
 
     handleDatasetSelection(datasetName) {
         console.log("Selected dataset:", datasetName);
@@ -431,9 +592,10 @@ class MINDInterface {
             .then(res => res.json())
             .then(data => {
                 console.log("Backend response:", data);
-                // Optionally update UI or notify the user
-            })
-            .catch(err => console.error("Topic selection error:", err));
+                if (data.topic_documents) {
+                    plotTopicDistributions(data.topic_documents);
+                }
+            }).catch(err => console.error("Topic selection error:", err));
         }
         else if (this.lastInstruction === 'Analyze contradictions') { // Not done yet
             fetch('/analyze_topic', {
@@ -447,7 +609,9 @@ class MINDInterface {
             .then(res => res.json())
             .then(data => {
                 console.log("Backend response:", data);
-                // Optionally update UI or notify the user
+                if (data.topic_documents) {
+                    plotTopicDistributions(data.topic_documents);
+                }
             })
             .catch(err => console.error("Topic analysis error:", err));
         } else {
@@ -503,46 +667,58 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
+<!-- Load Chart.js (you can put this in your base template head) -->
+
 <script>
-    const documentData = {{ documents | default([]) | tojson }};
-    document.addEventListener('DOMContentLoaded', function () {
-    documentData.forEach(doc => {
-        const ctx = document.getElementById(`chart-doc-${doc.doc_id}`).getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: doc.topic_distribution.map((_, i) => `Topic ${i}`),
-                datasets: [{
-                    label: 'Probability',
-                    data: doc.topic_distribution,
-                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
+async function loadTopicDistributions(topicId) {
+    try {
+        // Fetch data from your /topic_selection endpoint
+        const response = await fetch('/topic_selection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
             },
-            options: {
-                indexAxis: 'x', // vertical bars
-                responsive: true,
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const topicIndex = context.dataIndex;
-                                return `P: ${context.formattedValue}, Keywords: ${doc.topic_keywords[topicIndex]}`;
-                            }
-                        }
-                    },
-                    legend: { display: false }
-                },
-                scales: {
-                    y: { beginAtZero: true, max: 1 }
-                }
-            }
+            body: JSON.stringify({ topic_id: topicId })
         });
-    });
-});
+        console.log(topicId);
+        const data = await response.json();
+        const documents = data.topic_documents;
+
+        documents.forEach(doc => {
+            const ctx = document.getElementById(`chart-doc-${doc.doc_id}`);
+            if (!ctx) return; 
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: doc.topic_distribution.map((_, i) => `Topic ${i}`),
+                    datasets: [{
+                        label: 'Topic Probability',
+                        data: doc.topic_distribution,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1
+                        }
+                    }
+                }
+            });
+        });
+    } catch (err) {
+        console.error("Error loading topic distributions:", err);
+    }
+}
 
 </script>
+
+<script src="https://cdn.jsdelivr.net/gh/bmabey/pyLDAvis@master/pyLDAvis/js/ldavis.js"></script>
 
 
 {% endblock %}

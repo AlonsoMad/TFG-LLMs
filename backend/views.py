@@ -74,6 +74,7 @@ def dataset_selection():
 
     print("Received dataset:", dataset)
     session['dataset'] = dataset
+
     response = requests.post(f'{mind_api_url}/initialize', json={'dataset': dataset})
     
     return jsonify({'message': 'Dataset received', 'dataset': dataset})
@@ -94,6 +95,34 @@ def topic_selection():
     
     return jsonify(response.json())
 
+
+@views.route('/get_pyldavis', methods=['GET', 'POST'])
+@login_required
+def get_pyldavis():
+
+    #Get path to mallet ds
+    mallet_folder = f"{os.getenv('TM_PATH', '/Data/mallet_folder')}"
+    dataset = session['dataset'] if 'dataset' in session else 'en_2025_06_05_matched'
+
+    pyLDAvis_path = os.path.join(mallet_folder, dataset, 'n_topics_50', 'mallet_output')
+
+    if not os.path.exists(pyLDAvis_path):
+        flash(f"Path {pyLDAvis_path} does not exist.", "danger")
+        return jsonify({"error": "Mallet output path does not exist."}), 404
+    else:
+        vis_inputs = read_mallet(pyLDAvis_path)
+        print(vis_inputs)
+
+        visuals = vis.prepare(topic_term_dists=vis_inputs['topic_term_dists_en'],
+                            doc_topic_dists=vis_inputs['doc_topic_dists_en'],
+                            doc_lengths=vis_inputs['doc_lengths_en'],
+                            vocab=vis_inputs['vocab_en'],
+                            term_frequency=vis_inputs['term_frequency_en'])
+
+        response = vis.prepared_data_to_json(visuals)
+
+
+    return jsonify(response.json())
 
 @views.route('/analyze_topic', methods=['GET', 'POST'])
 @login_required
