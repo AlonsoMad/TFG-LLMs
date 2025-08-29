@@ -16,6 +16,7 @@ class WikiRetriever():
 
   def __init__(self,
                file_path: str,
+               trgt_lan: str ,
                seed_lan: str = "en",
                seed_query: str = "George Washington",
                project_name: str = 'AlonsoMadBot/0.0 (100454449@alumnos.uc3m.es) wikipedia-api/0.8.1' ,
@@ -34,6 +35,7 @@ class WikiRetriever():
 
     self.file_path = file_path
     self.seed_lan = seed_lan
+    self.trgt_lan = trgt_lan
     self.seed_query = seed_query
     self.project_name = project_name
     self.ndocs = ndocs
@@ -178,7 +180,7 @@ class WikiRetriever():
 
     if query.exists() and not repeated:
       #check that both languages are available
-      if "es" in query.langlinks.keys():
+      if str(self.trgt_lan) in query.langlinks.keys():
         #Update english dict
         #else choose english
         self.en_doc_list.append([query.title,
@@ -201,11 +203,11 @@ class WikiRetriever():
 
 
         #Update spanish
-        query_esp = query.langlinks["es"]
+        query_esp = query.langlinks[str(self.trgt_lan)]
         self.es_doc_list.append([query_esp.title,
                                   query_esp.summary,
                                   query_esp.text,
-                                  "es",
+                                  str(self.trgt_lan),
                                   query.fullurl,
                                   0])
         

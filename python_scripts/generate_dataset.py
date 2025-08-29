@@ -43,9 +43,10 @@ if __name__ == "__main__":
     # Initialize WikiRetriever with desired parameters
     retriever = WikiRetriever(
         file_path=output_dir,
+        trgt_lan="de", #Target language change with iterations
         seed_lan="en",
         seed_query="George Washington",
-        ndocs=20000
+        ndocs=600
     )
 
     attempt = 0
