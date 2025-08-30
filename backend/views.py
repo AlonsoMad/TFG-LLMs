@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from models import User
 from enum import Enum
+import glob
 
 import dotenv
 import os
@@ -278,12 +279,44 @@ def detection():
             shapes = og_ds.shape
             og_ds = og_ds.drop(columns=['index'])
 
-            ds_tuple = (og_ds, [og_dataset], [shapes])
+            # 🔹 Load ALL files in final_results (recursively)
+            final_results_path = os.path.join(dataset_path, "final_results")
+            mind_info = []
 
-            full_path = os.path.join(dataset_path,'final_results',f"topic_{topic_id}",f'samples_len_{n_samples}', 'results.parquet')
+            all_datasets = {}
 
-            ds = pd.read_parquet(full_path)
-            mind_info = ds.to_dict(orient='records')
+            for file in glob.glob(os.path.join(final_results_path, "**", "*.*"), recursive=True):
+                if file.endswith((".parquet", ".csv", ".xlsx")):
+                    try:
+                        if file.endswith(".parquet"):
+                            df = pd.read_parquet(file)
+                        elif file.endswith(".csv"):
+                            df = pd.read_csv(file)
+                        elif file.endswith(".xlsx"):
+                            df = pd.read_excel(file)
+
+                        # Add raw_text from original dataset
+                        if "doc_id" in df.columns and "doc_id" in og_ds.columns:
+                            df = df.merge(
+                                og_ds[["doc_id", "raw_text"]],
+                                on="doc_id",
+                                how="left"
+                            )
+
+                        dataset_name = os.path.relpath(file, final_results_path)
+                        mind_info.append({dataset_name: df.to_dict(orient="records")})
+
+
+                    except Exception as e:
+                        print(f"⚠️ Failed to load {file}: {e}")
+
+            print(mind_info)
+            # ds_tuple = (og_ds, [og_dataset], [shapes])
+
+            # full_path = os.path.join(dataset_path,'final_results',f"topic_{topic_id}",f'samples_len_{n_samples}', 'results.parquet')
+
+            # ds = pd.read_parquet(full_path)
+            # mind_info = ds.to_dict(orient='records')
 
         else:
             flash("Unknown MIND state.", "danger")

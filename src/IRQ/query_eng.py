@@ -5,6 +5,7 @@ import faiss
 from tqdm import tqdm
 import ast
 import time
+from datetime import datetime
 import pandas as pd
 import numpy as np
 from scipy import sparse, stats
@@ -21,7 +22,7 @@ from .indexer import *
 from mind.query_generator import QueryGenerator
 from mind.question_generator import QuestionGenerator
 
-
+dotenv.load_dotenv()
 
 class QueryEngine(NLPoperator):
     '''
@@ -91,7 +92,7 @@ class QueryEngine(NLPoperator):
         '''
         Generates and intializes the prompter for answering
         '''
-        llm_model = "llama3.1:8b"
+        llm_model = "gpt-4o-mini"
         ollama_host = "http://kumo02.tsc.uc3m.es:11434"
 
         prompter = Prompter(
@@ -181,22 +182,28 @@ class QueryEngine(NLPoperator):
         Saves the results as a readable file, if there is yet a previous file
         it appends the new results at the end of the same.
         '''
-        print('Saving the answers!')
+
+        path = os.getenv("OUTPUT_PATH", "/Data/mind_folder")
+        date = datetime.today().strftime('%Y-%m-%d-%H-%M')
         if option=='answers':
+            print('Saving the answers!')
+
             path_suffix = 'answered'
-            path = os.path.join(f'/export/usuarios_ml4ds/ammesa/mind_folder/{path_suffix}')
+            path = os.path.join(path, path_suffix)
             os.makedirs(path, exist_ok=True)
-            full_path = os.path.join(path, 'answered_files.parquet')
+            full_path = os.path.join(path, f'{date}_answered_files.parquet')
             if os.path.exists(full_path):
                 df_aux = pd.read_parquet(full_path)
                 df = pd.concat([df, df_aux])
             df.to_parquet(full_path)
 
         elif option=='final_results':
+            print('Saving the results!')
+
             path_suffix = 'final_results'
-            path = os.path.join(f'/export/usuarios_ml4ds/ammesa/mind_folder/{path_suffix}')
+            path = os.path.join(path, path_suffix)
             os.makedirs(path, exist_ok=True)
-            full_path = os.path.join(path, f'{self.topic_model}_answered_files.parquet')
+            full_path = os.path.join(path, f'{date}_results.parquet')
             if os.path.exists(full_path):
                 df_aux = pd.read_parquet(full_path)
                 df_new = df[~df['question_id'].isin(df_aux['question_id'])]
@@ -332,8 +339,8 @@ class QueryEngine(NLPoperator):
                     # GENERATE ANSWER IN TARGET LANGUAGE #
                     ######################################
 
-                    if row.doc_id in top_docs:
-                        import pdb; pdb.set_trace()
+                    # if row.doc_id in top_docs:
+                        # import pdb; pdb.set_trace()
                     try:
                         passage_t = raw[raw.id_preproc == new_id_prep].raw_text.iloc[0]
                         full_doc_t = raw[raw.id_preproc == new_id_prep].raw_text.iloc[0]
@@ -391,8 +398,8 @@ class QueryEngine(NLPoperator):
                                 reason = ""
                         print("Discrepancy:", label)
 
-                        if label == 'CULTURAL_DISCREPANCY':
-                            import pdb; pdb.set_trace()
+                        # if label == 'CULTURAL_DISCREPANCY':
+                        #     import pdb; pdb.set_trace()
 
                         
                     else:

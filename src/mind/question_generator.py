@@ -15,7 +15,7 @@ class QuestionGenerator():
         logger: logging.Logger = None,
         config_path: pathlib.Path = pathlib.Path("config/config.yaml"),
         instructions_path: pathlib.Path = pathlib.Path("mind/templates/question_generation.txt"),
-        model_type: str = "llama3.3:70b",  # you can try other models; you can check available models by doing `ollama list` in the terminal (this only works from kumo01)
+        model_type: str = "gpt-4o-mini",  # you can try other models; you can check available models by doing `ollama list` in the terminal (this only works from kumo01)
     ):
         self._logger = logger if logger else init_logger(config_path, __name__)
         # TODO: I'd probably load default config here with instruction_path, default model_type, etc. rather than passing each independently, plus var args that could be passed

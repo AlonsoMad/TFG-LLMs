@@ -96,38 +96,82 @@
     {% elif status == 'running' %}
         <p class="lead">MIND is currently running...</p>
     {% elif status == 'completed' %}
-        {% if mind_info %}
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Analysis Results</h5>
-                    <a href="{{ url_for('views.get_results') }}" class="btn btn-light btn-sm text-success" download>
-                        <i class="fas fa-download"></i> Download
-                    </a>
-                </div>
-                <div class="card-body">
-                    <p class="lead">MIND has completed processing. Below are the results:</p>
-                    {% for info in mind_info %}
-                    <div class="card mb-3 shadow-sm">
-                        <div class="card-header d-flex justify-content-between align-items-center bg-light">
-                            <strong>Q#{{ loop.index }}</strong>
-                            <a href="#" 
-                                class="text-muted small view-doc-link" 
-                                data-doc-id="{{ info.doc_id }}" 
-                                data-doc-content="{{ ds_tuple[0].loc[ds_tuple[0].doc_id == info.doc_id, 'raw_text'].iloc[0] | e }}">
-                                Doc ID: {{ info.doc_id }}
-                            </a>
-                        </div>
+    <div id="accordion" class="mt-4">
+        {% for dataset_dict in mind_info %}
+            {% set ds_index = loop.index %}
+            {% for dataset_name, records in dataset_dict.items() %}
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center" id="heading{{ ds_index }}">
+                        <h5 class="mb-0">
+                            <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapse{{ ds_index }}"
+                                    aria-expanded="false" aria-controls="collapse{{ ds_index }}">
+                                {{ dataset_name }}
+                            </button>
+                        </h5>
+                        <!-- Download button placeholder -->
+                        <button class="btn btn-sm btn-outline-primary">Download Excel</button>
+                    </div>
+
+                    <div id="collapse{{ ds_index }}" class="collapse" aria-labelledby="heading{{ ds_index }}"
+                        data-parent="#accordion">
                         <div class="card-body">
-                            <p><strong>Source passage:</strong> <span class="text-truncate d-inline-block" style="max-width: 100%; overflow: hidden;">{{ info.passage_s }}</span></p>
-                            <p><strong>Target passage:</strong> <span class="text-truncate d-inline-block" style="max-width: 100%; overflow: hidden;">{{ info.passage_t }}</span></p>
-                            <p><strong>Label:</strong> {{ info.discrepancy }}</p>
+
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Passage T</th>
+                                            <th>Passage S</th>
+                                            <th>Discrepancy</th>
+                                            <th>Doc ID</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for row in records %}
+                                        {% set row_index = loop.index %}
+                                        <tr>
+                                            <td>{{ row.passage_t }}</td>
+                                            <td>{{ row.passage_s }}</td>
+                                            <td>
+                                                {% if row.discrepancy == 'CONTRADICTION' %}
+                                                    <span class="badge text-bg-danger" style="color:rgb(184, 62, 62)">{{ row.discrepancy }}</span>
+                                                {% elif row.discrepancy == 'CULTURAL_DISCREPANCY' %}
+                                                    <span class="badge text-bg-warning" style="color:rgb(227, 112, 40)">{{ row.discrepancy }}</span>
+                                                {% elif row.discrepancy == 'NOT_ENOUGH_INFO' %}
+                                                    <span class="badge text-bg-info" style="color:rgb(28, 128, 171)">{{ row.discrepancy }}</span>
+                                                {% elif row.discrepancy == 'NO_DISCREPANCY' %}
+                                                    <span class="badge text-bg-success" style="color:rgb(2, 130, 23)">{{ row.discrepancy }}</span>
+                                                {% else %}
+                                                    <span class="badge text-bg-secondary">{{ row.discrepancy }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="#" data-toggle="collapse" data-target="#rawText{{ ds_index }}_{{ row_index }}">
+                                                    {{ row.doc_id }}
+                                                </a>
+                                                <div id="rawText{{ ds_index }}_{{ row_index }}" class="collapse mt-2">
+                                                    <pre style="white-space: pre-wrap; word-wrap: break-word;">{{ row.raw_text }}</pre>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
-            </div>
-        {% endif %}
+            {% endfor %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No datasets available.</p>
     {% endif %}
+
+
+
+
 
 </div>
 

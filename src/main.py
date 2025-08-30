@@ -135,6 +135,7 @@ def run_mind(request: Request):
     
 
     cli.retrieval(topic_number=topic_n, n_sample=n_sample, parallel=False)
+    current_status["state"] = MindStatus.completed
   
     return {"message": "Running MIND pipeline..."}
 
